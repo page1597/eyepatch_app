@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
-
-enum ConnectionState { connected, disconnected, connecting, disconnecting }
 
 void main() {
   runApp(const MyApp());
@@ -37,9 +34,12 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final flutterReactiveBle = FlutterReactiveBle();
   StreamSubscription? _subscription;
-  late List<DiscoveredDevice> _scanResultList = []; // 스캔한 기기의 목록
+  late final List<DiscoveredDevice> _deviceList = []; // 스캔한 기기의 목록
+  late List<DeviceConnectionState> _deviceStateList = []; // 스캔한 기기의 연결 상태 목록
+  // late final
   late DiscoveredDevice _device; // 현재 연결 기기
-  late ConnectionState _connectionState = ConnectionState.disconnected;
+  // late ConnectionState _connectionState = ConnectionState.disconnected;
+  late StreamSubscription _deviceSubscription;
 
   @override
   void initState() {
@@ -63,29 +63,41 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   scan() async {
-    _scanResultList.clear(); //초기화
+    _deviceList.clear(); //초기화
+    _deviceStateList.clear();
 
     if (await getPermission()) {
+      // flutterReactiveBle.readCharacteristic(characteristic)
       _subscription = flutterReactiveBle.scanForDevices(
-          withServices: [], scanMode: ScanMode.balanced).listen((device) {
-        if (!_scanResultList.toString().contains(device.id.toString())) {
+          withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
+        if (!_deviceList.toString().contains(device.id.toString())) {
           //중복 x
           print(device);
-          _scanResultList.add(device);
-          setState(() {});
+
+          setState(() {
+            _deviceList.add(device);
+            _deviceStateList.add(DeviceConnectionState.disconnected);
+          });
         }
+        // print('서비스: ${flutterReactiveBle.discoverServices(_device.id)}');
 
         //code for handling results
       }, onError: (error) {
         print(error);
         //code for handling error
       });
+
+      // flutterReactiveBle.readCharacteristic()o
     }
+    // setState(() {
+    //   _deviceStateList =
+    //       List.filled(_deviceList.length, ConnectionState.disconnected);
+    // });
     Timer(const Duration(seconds: 10), (() {
       stopScan();
     }));
     setState(() {});
-    // return _scanResultList;
+    // return _deviceList;
     // return scanResult;
   }
 
@@ -93,54 +105,64 @@ class _MyHomePageState extends State<MyHomePage> {
     // 검색 중지
     _subscription?.cancel();
     _subscription = null;
-    setState(() {
-      _connectionState = ConnectionState.disconnected;
-    });
   }
 
+  Future<List<DiscoveredService>> discoverServices(String deviceId) =>
+      flutterReactiveBle.discoverServices(deviceId);
+
   connect() {
+    print('연결');
+    // var services = flutterReactiveBle.discoverServices(_device.id);
+    // services.forEach((element) {
+    //   print(element);
+    // });
+    // var services = discoverServices(_device.id);
+    // services.then((value) => print(value));
+
+    // print('서비스: ${flutterReactiveBle.discoverServices(_device.id).then((value) => null)}');
     //해당 기기와 연결
     //flutterReactiveBle.connectToAdvertisingDevice -> 장치가 발견된 경우에만 연결
-    flutterReactiveBle
+    _deviceSubscription = flutterReactiveBle
         .connectToDevice(
             id: _device.id, connectionTimeout: const Duration(seconds: 20))
         .listen((event) {
       print('연결 상태: ${event.connectionState}');
-      switch (event.connectionState) {
-        case DeviceConnectionState.connected:
-          setState(() {
-            _connectionState = ConnectionState.connected;
-          });
-          break;
-        case DeviceConnectionState.connecting:
-          setState(() {
-            _connectionState = ConnectionState.connecting;
-          });
-          break;
-        case DeviceConnectionState.disconnecting:
-          setState(() {
-            _connectionState = ConnectionState.disconnecting;
-          });
-          break;
-        case DeviceConnectionState.disconnected:
-          setState(() {
-            _connectionState = ConnectionState.disconnected;
-          });
-          // TODO: Handle this case.
-          break;
+
+      int index = _deviceList.indexOf(_device);
+
+      setState(() {
+        _deviceStateList[index] = event.connectionState;
+      });
+      // 연결된 경우에만
+      if (event.connectionState == DeviceConnectionState.connected) {
+        // Notivy
+        // final characteristic = QualifiedCharacteristic(
+        //     serviceId: _device.,
+        //     characteristicId: _device.serviceUuids[0],
+        //     deviceId: _device.id);
+        // flutterReactiveBle.subscribeToCharacteristic(characteristic).listen(
+        //     (data) {
+        //   print(data);
+        //   // code to handle incoming data
+        // }, onError: (dynamic error) {
+        //   // code to handle errors
+        // });
       }
     }, onError: (error) {
       print(error);
     });
+    setState(() {});
   }
 
   disconnect() {
     try {
-      _subscription?.cancel();
-      _subscription = null;
+      // _subscription?.cancel();
+      // _subscription = null;
+      _deviceSubscription.cancel();
+      int index = _deviceList.indexOf(_device);
 
       setState(() {
-        _connectionState = ConnectionState.disconnected;
+        _deviceStateList[index] = DeviceConnectionState.disconnected;
       });
     } on Exception catch (e, _) {
       print(e);
@@ -186,63 +208,65 @@ class _MyHomePageState extends State<MyHomePage> {
                     hintText: '연결할 기기의 번호를 입력하세요'),
               ),
             ),
-            Expanded(
-                child: ListView.separated(
-                    shrinkWrap: false,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        title: Text(_scanResultList[index].name),
-                        subtitle: Text(_scanResultList[index].id),
-                        leading: const CircleAvatar(
-                          backgroundColor: Colors.blue,
-                          child: Icon(
-                            Icons.bluetooth,
-                            color: Colors.white,
-                          ),
-                        ),
-                        trailing: SizedBox(
-                          width: 100,
-                          height: 40,
-                          child: ElevatedButton(
-                            style: OutlinedButton.styleFrom(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                side:
-                                    const BorderSide(color: Colors.transparent),
-                                backgroundColor: Colors.blue),
-                            onPressed: () {
-                              // 연결, 연결 끊기
-                              _device = _scanResultList[index]; // 선택한 기기
-                              setState(() {});
-                              if (_connectionState ==
-                                  ConnectionState.disconnected) {
-                                connect();
-                              } else if (_connectionState ==
-                                  ConnectionState.connected) {
-                                disconnect();
-                              }
-                            },
-                            child: Text(
-                              _connectionState.name,
-                              // _connectionState == ConnectionState.disconnected
-                              //     ? '연결하기'
-                              //     : '연결끊기',
-                              // connectButtonTextList[r.device.id.toString()].toString() == 'null'
-                              //     ? '연결하기'
-                              //     : connectButtonTextList[r.device.id.toString()].toString(),
-                              style: const TextStyle(color: Colors.white),
+            _deviceStateList.isNotEmpty
+                ? Expanded(
+                    child: ListView.separated(
+                        shrinkWrap: false,
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text(_deviceList[index].name),
+                            subtitle: Text(_deviceList[index].id),
+                            leading: const CircleAvatar(
+                              backgroundColor: Colors.blue,
+                              child: Icon(
+                                Icons.bluetooth,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                        ),
-                        // trailing: ,
-                      );
-                    },
-                    separatorBuilder: (context, index) {
-                      return const Divider();
-                    },
-                    itemCount: _scanResultList.length)),
+                            trailing: SizedBox(
+                              width: 100,
+                              height: 40,
+                              child: ElevatedButton(
+                                style: OutlinedButton.styleFrom(
+                                    elevation: 0,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    side: const BorderSide(
+                                        color: Colors.transparent),
+                                    backgroundColor: Colors.blue),
+                                onPressed: () {
+                                  // 연결, 연결 끊기
+                                  _device = _deviceList[index]; // 선택한 기기
+                                  setState(() {});
+                                  if (_deviceStateList[index] ==
+                                      DeviceConnectionState.disconnected) {
+                                    connect();
+                                  } else if (_deviceStateList[index] ==
+                                      DeviceConnectionState.connected) {
+                                    disconnect();
+                                  }
+                                },
+                                child: Text(
+                                  _deviceStateList[index].name,
+                                  // _connectionState == ConnectionState.disconnected
+                                  //     ? '연결하기'
+                                  //     : '연결끊기',
+                                  // connectButtonTextList[r.device.id.toString()].toString() == 'null'
+                                  //     ? '연결하기'
+                                  //     : connectButtonTextList[r.device.id.toString()].toString(),
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                            // trailing: ,
+                          );
+                        },
+                        separatorBuilder: (context, index) {
+                          return const Divider();
+                        },
+                        itemCount: _deviceList.length))
+                : Container(),
           ],
         ),
       ),
