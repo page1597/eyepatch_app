@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 
 class DetailPage extends StatefulWidget {
-  final DiscoveredDevice device; // charicter정보도 받아와야하나
-  final DeviceConnectionState connectionState;
+  final dynamic device; // charicter정보도 받아와야하나
+  final dynamic connectionState;
   const DetailPage(
       {Key? key, required this.device, required this.connectionState})
       : super(key: key);

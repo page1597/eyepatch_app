@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:eyepatch_app/detailPage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+// import 'flutterb';
 
 void main() {
   runApp(const MyApp());
@@ -33,14 +34,17 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final flutterReactiveBle = FlutterReactiveBle();
-  StreamSubscription? _subscription;
-  late final List<DiscoveredDevice> _deviceList = []; // 스캔한 기기의 목록
-  late List<DeviceConnectionState> _deviceStateList = []; // 스캔한 기기의 연결 상태 목록
-  // late final
-  late DiscoveredDevice _device; // 현재 연결 기기
-  // late ConnectionState _connectionState = ConnectionState.disconnected;
-  late StreamSubscription _deviceSubscription;
+  // final flutterReactiveBle = FlutterReactiveBle();
+  // StreamSubscription? _subscription;
+  // late final List<DiscoveredDevice> _deviceList = []; // 스캔한 기기의 목록
+  // late List<DeviceConnectionState> _deviceStateList = []; // 스캔한 기기의 연결 상태 목록
+  // late DiscoveredDevice _device; // 현재 연결 기기
+  // late StreamSubscription _deviceSubscription;
+
+  FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
+  late final List<ScanResult> _resultList = [];
+  late List<bool> _deviceStateList = []; //나중엥 변경하기
+  late ScanResult _result;
 
   @override
   void initState() {
@@ -64,110 +68,87 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   scan() async {
-    _deviceList.clear(); //초기화
+    _resultList.clear(); //초기화p
     _deviceStateList.clear();
+    setState(() {});
+    // ;
 
     if (await getPermission()) {
-      // flutterReactiveBle.readCharacteristic(characteristic)
-      _subscription = flutterReactiveBle.scanForDevices(
-          withServices: [], scanMode: ScanMode.lowLatency).listen((device) {
-        if (!_deviceList.toString().contains(device.id.toString())) {
-          //중복 x
-          print(device);
+      flutterBlue.startScan(timeout: const Duration(seconds: 10));
+
+      var subscription = flutterBlue.scanResults.listen((results) {
+        for (ScanResult r in results) {
+          print(r);
+          print(
+              'r.advertisementData: ${r.advertisementData.manufacturerData[0]}');
 
           setState(() {
-            _deviceList.add(device);
-            _deviceStateList.add(DeviceConnectionState.disconnected);
+            _resultList.add(r);
+            _deviceStateList.add(false);
           });
         }
-        // print('서비스: ${flutterReactiveBle.discoverServices(_device.id)}');
-
-        //code for handling results
-      }, onError: (error) {
-        print(error);
-        //code for handling error
       });
 
-      // flutterReactiveBle.readCharacteristic()o
+      flutterBlue.stopScan();
     }
     // setState(() {
-    //   _deviceStateList =
-    //       List.filled(_deviceList.length, ConnectionState.disconnected);
+    //   _deviceStateList = List.filled(_deviceList.length, false);
     // });
-    Timer(const Duration(seconds: 10), (() {
-      stopScan();
-    }));
-    setState(() {});
-    // return _deviceList;
-    // return scanResult;
+    // print(_deviceList);
   }
 
-  stopScan() {
-    // 검색 중지
-    _subscription?.cancel();
-    _subscription = null;
-  }
+  // stopScan() {
+  //   // 검색 중지
+  //   _subscription?.cancel();
+  //   _subscription = null;
+  // }
 
-  Future<void> discoverServices() async {
-    print('discover service..');
-    // await flutterReactiveBle.discoverServices(_device.id).then((value) => {
-    //       QualifiedCharacteristic(
-    //           characteristicId: value, serviceId: serviceId, deviceId: deviceId)
-    //     });
-  }
+  // Future<void> discoverServices() async {
+  //   print('discover service..');
+  //   // await flutterReactiveBle.discoverServices(_device.id).then((value) => {
+  //   //       QualifiedCharacteristic(
+  //   //           characteristicId: value, serviceId: serviceId, deviceId: deviceId)
+  //   //     });
+  // }
 
-  connect() {
-    print('연결');
-    _deviceSubscription =
-        flutterReactiveBle.connectToDevice(id: _device.id).listen((event) {
-      //connectiontimeout
-      print('연결 상태: ${event.connectionState}');
+  read() async {
+    print('이거!!: ${_result.advertisementData}');
+    // _result.advertisementData.
 
-      int index = _deviceList.indexOf(_device);
-
-      setState(() {
-        _deviceStateList[index] = event.connectionState;
-      });
-      // 연결된 경우에만
-      if (event.connectionState == DeviceConnectionState.connected) {
-        // discoverServices();
-        print(_device.serviceData);
-        // Notivy
-        // final characteristic = QualifiedCharacteristic(
-        //     serviceId: _device.,
-        //     characteristicId: _device.serviceUuids[0],
-        //     deviceId: _device.id);
-        // flutterReactiveBle.subscribeToCharacteristic(characteristic).listen(
-        //     (data) {
-        //   print(data);
-        //   // code to handle incoming data
-        // }, onError: (dynamic error) {
-        //   // code to handle errors
-        // });
-      }
-    }, onError: (error) {
-      print(error);
+    List<BluetoothService> services = await _result.device.discoverServices();
+    // services
+    services.forEach((service) async {
+      var characteristics = service.characteristics;
+      print(characteristics);
+      // for (BluetoothCharacteristic c in characteristics) {
+      //   List<int> value = await c.read();
+      //   print(value);
+      // }
     });
-    setState(() {});
+  }
+
+  connect() async {
+    print('연결');
+    try {
+      await _result.device.connect();
+      int index = _resultList.indexOf(_result);
+      _deviceStateList[index] = true;
+      setState(() {});
+      print('연결되었습니다.');
+    } catch (e) {
+      print('에러: $e');
+    }
+    // print(a.)
+
+    read();
   }
 
   disconnect() {
-    try {
-      // _subscription?.cancel();
-      // _subscription = null;
-      _deviceSubscription.cancel();
-      int index = _deviceList.indexOf(_device);
+    _result.device.disconnect();
+    int index = _resultList.indexOf(_result);
 
-      setState(() {
-        _deviceStateList[index] = DeviceConnectionState.disconnected;
-      });
-    } on Exception catch (e, _) {
-      print(e);
-    }
-  }
-
-  clearBle() async {
-    // await flutterReactiveBle.clearGattCache(deviceId);  //화면이 dispose 되는 경우에 적용시켜 캐시를 청소해
+    _deviceStateList[index] = false;
+    setState(() {});
   }
 
   @override
@@ -212,20 +193,20 @@ class _MyHomePageState extends State<MyHomePage> {
                         itemBuilder: (context, index) {
                           return GestureDetector(
                             onTap: () {
-                              if (_deviceStateList[index] ==
-                                  DeviceConnectionState.connected) {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => DetailPage(
-                                            device: _deviceList[index],
-                                            connectionState:
-                                                _deviceStateList[index])));
-                              }
+                              // if (_deviceStateList[index] == true) {
+                              //   Navigator.push(
+                              //       context,
+                              //       MaterialPageRoute(
+                              //           builder: (context) => DetailPage(
+                              //               device: _deviceList[index],
+                              //               connectionState:
+                              //                   _deviceStateList[index])));
+                              // }
                             },
                             child: ListTile(
-                              title: Text(_deviceList[index].name),
-                              subtitle: Text(_deviceList[index].id),
+                              title: Text(_resultList[index].device.name),
+                              subtitle:
+                                  Text(_resultList[index].device.id.toString()),
                               leading: const CircleAvatar(
                                 backgroundColor: Colors.blue,
                                 child: Icon(
@@ -247,20 +228,17 @@ class _MyHomePageState extends State<MyHomePage> {
                                       backgroundColor: Colors.blue),
                                   onPressed: () {
                                     // 연결, 연결 끊기
-                                    _device = _deviceList[index]; // 선택한 기기
+                                    _result = _resultList[index]; // 선택한 기기
                                     setState(() {});
-                                    if (_deviceStateList[index] ==
-                                        DeviceConnectionState.disconnected) {
+                                    if (_deviceStateList[index] == false) {
                                       connect();
                                     } else if (_deviceStateList[index] ==
-                                            DeviceConnectionState.connected ||
-                                        _deviceStateList[index] ==
-                                            DeviceConnectionState.connecting) {
+                                        true) {
                                       disconnect();
                                     }
                                   },
                                   child: Text(
-                                    _deviceStateList[index].name,
+                                    _deviceStateList[index].toString(),
                                     // _connectionState == ConnectionState.disconnected
                                     //     ? '연결하기'
                                     //     : '연결끊기',
@@ -278,7 +256,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         separatorBuilder: (context, index) {
                           return const Divider();
                         },
-                        itemCount: _deviceList.length))
+                        itemCount: _resultList.length))
                 : Container(),
           ],
         ),
