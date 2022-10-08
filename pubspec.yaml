@@ -37,6 +37,10 @@ dependencies:
   flutter_reactive_ble: ^5.0.2
   location_permissions: ^4.0.1
   permission_handler: ^10.1.0
+  sqflite: ^2.0.3+1
+  path: ^1.8.1
+  csv: ^5.0.1
+  external_path: ^1.0.3
 
 dev_dependencies:
   flutter_test:

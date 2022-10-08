@@ -43,6 +43,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.16.0"
+  csv:
+    dependency: "direct main"
+    description:
+      name: csv
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "5.0.1"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -50,6 +57,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.0.5"
+  external_path:
+    dependency: "direct main"
+    description:
+      name: external_path
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "1.0.3"
   fake_async:
     dependency: transitive
     description:
@@ -131,7 +145,7 @@ packages:
     source: hosted
     version: "1.7.0"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       url: "https://pub.dartlang.org"
@@ -212,6 +226,20 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.8.2"
+  sqflite:
+    dependency: "direct main"
+    description:
+      name: sqflite
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.0.3+1"
+  sqflite_common:
+    dependency: transitive
+    description:
+      name: sqflite_common
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "2.3.0"
   stack_trace:
     dependency: transitive
     description:
@@ -233,6 +261,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "1.1.0"
+  synchronized:
+    dependency: transitive
+    description:
+      name: synchronized
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "3.0.0+3"
   term_glyph:
     dependency: transitive
     description:
@@ -256,4 +291,4 @@ packages:
     version: "2.1.2"
 sdks:
   dart: ">=2.17.5 <3.0.0"
-  flutter: ">=2.8.0"
+  flutter: ">=3.0.0"

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:eyepatch_app/detailPage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -107,25 +108,19 @@ class _MyHomePageState extends State<MyHomePage> {
     _subscription = null;
   }
 
-  Future<List<DiscoveredService>> discoverServices(String deviceId) =>
-      flutterReactiveBle.discoverServices(deviceId);
+  Future<void> discoverServices() async {
+    print('discover service..');
+    // await flutterReactiveBle.discoverServices(_device.id).then((value) => {
+    //       QualifiedCharacteristic(
+    //           characteristicId: value, serviceId: serviceId, deviceId: deviceId)
+    //     });
+  }
 
   connect() {
     print('연결');
-    // var services = flutterReactiveBle.discoverServices(_device.id);
-    // services.forEach((element) {
-    //   print(element);
-    // });
-    // var services = discoverServices(_device.id);
-    // services.then((value) => print(value));
-
-    // print('서비스: ${flutterReactiveBle.discoverServices(_device.id).then((value) => null)}');
-    //해당 기기와 연결
-    //flutterReactiveBle.connectToAdvertisingDevice -> 장치가 발견된 경우에만 연결
-    _deviceSubscription = flutterReactiveBle
-        .connectToDevice(
-            id: _device.id, connectionTimeout: const Duration(seconds: 20))
-        .listen((event) {
+    _deviceSubscription =
+        flutterReactiveBle.connectToDevice(id: _device.id).listen((event) {
+      //connectiontimeout
       print('연결 상태: ${event.connectionState}');
 
       int index = _deviceList.indexOf(_device);
@@ -135,6 +130,8 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       // 연결된 경우에만
       if (event.connectionState == DeviceConnectionState.connected) {
+        // discoverServices();
+        print(_device.serviceData);
         // Notivy
         // final characteristic = QualifiedCharacteristic(
         //     serviceId: _device.,
@@ -213,53 +210,69 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: ListView.separated(
                         shrinkWrap: false,
                         itemBuilder: (context, index) {
-                          return ListTile(
-                            title: Text(_deviceList[index].name),
-                            subtitle: Text(_deviceList[index].id),
-                            leading: const CircleAvatar(
-                              backgroundColor: Colors.blue,
-                              child: Icon(
-                                Icons.bluetooth,
-                                color: Colors.white,
-                              ),
-                            ),
-                            trailing: SizedBox(
-                              width: 100,
-                              height: 40,
-                              child: ElevatedButton(
-                                style: OutlinedButton.styleFrom(
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    side: const BorderSide(
-                                        color: Colors.transparent),
-                                    backgroundColor: Colors.blue),
-                                onPressed: () {
-                                  // 연결, 연결 끊기
-                                  _device = _deviceList[index]; // 선택한 기기
-                                  setState(() {});
-                                  if (_deviceStateList[index] ==
-                                      DeviceConnectionState.disconnected) {
-                                    connect();
-                                  } else if (_deviceStateList[index] ==
-                                      DeviceConnectionState.connected) {
-                                    disconnect();
-                                  }
-                                },
-                                child: Text(
-                                  _deviceStateList[index].name,
-                                  // _connectionState == ConnectionState.disconnected
-                                  //     ? '연결하기'
-                                  //     : '연결끊기',
-                                  // connectButtonTextList[r.device.id.toString()].toString() == 'null'
-                                  //     ? '연결하기'
-                                  //     : connectButtonTextList[r.device.id.toString()].toString(),
-                                  style: const TextStyle(color: Colors.white),
+                          return GestureDetector(
+                            onTap: () {
+                              if (_deviceStateList[index] ==
+                                  DeviceConnectionState.connected) {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => DetailPage(
+                                            device: _deviceList[index],
+                                            connectionState:
+                                                _deviceStateList[index])));
+                              }
+                            },
+                            child: ListTile(
+                              title: Text(_deviceList[index].name),
+                              subtitle: Text(_deviceList[index].id),
+                              leading: const CircleAvatar(
+                                backgroundColor: Colors.blue,
+                                child: Icon(
+                                  Icons.bluetooth,
+                                  color: Colors.white,
                                 ),
                               ),
+                              trailing: SizedBox(
+                                width: 100,
+                                height: 40,
+                                child: ElevatedButton(
+                                  style: OutlinedButton.styleFrom(
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      side: const BorderSide(
+                                          color: Colors.transparent),
+                                      backgroundColor: Colors.blue),
+                                  onPressed: () {
+                                    // 연결, 연결 끊기
+                                    _device = _deviceList[index]; // 선택한 기기
+                                    setState(() {});
+                                    if (_deviceStateList[index] ==
+                                        DeviceConnectionState.disconnected) {
+                                      connect();
+                                    } else if (_deviceStateList[index] ==
+                                            DeviceConnectionState.connected ||
+                                        _deviceStateList[index] ==
+                                            DeviceConnectionState.connecting) {
+                                      disconnect();
+                                    }
+                                  },
+                                  child: Text(
+                                    _deviceStateList[index].name,
+                                    // _connectionState == ConnectionState.disconnected
+                                    //     ? '연결하기'
+                                    //     : '연결끊기',
+                                    // connectButtonTextList[r.device.id.toString()].toString() == 'null'
+                                    //     ? '연결하기'
+                                    //     : connectButtonTextList[r.device.id.toString()].toString(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                              // trailing: ,
                             ),
-                            // trailing: ,
                           );
                         },
                         separatorBuilder: (context, index) {
