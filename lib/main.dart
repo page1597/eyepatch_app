@@ -1,8 +1,12 @@
 import 'dart:async';
+
 import 'package:eyepatch_app/detailPage.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+// import 'package:flutter/fl';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:hex/hex.dart';
+import 'package:convert/convert.dart';
 // import 'flutterb';
 
 void main() {
@@ -43,8 +47,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   late final List<ScanResult> _resultList = [];
-  late List<bool> _deviceStateList = []; //나중엥 변경하기
+  late final List<bool> _deviceStateList = []; //나중엥 변경하기
+  late final List<dynamic> _rawDataList = [];
   late ScanResult _result;
+  final StreamController _controller = StreamController.broadcast();
+  // late
+  late dynamic uuid;
 
   @override
   void initState() {
@@ -68,24 +76,36 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   scan() async {
-    _resultList.clear(); //초기화p
+    _resultList.clear(); //초기화
     _deviceStateList.clear();
     setState(() {});
-    // ;
 
     if (await getPermission()) {
       flutterBlue.startScan(timeout: const Duration(seconds: 10));
 
       var subscription = flutterBlue.scanResults.listen((results) {
         for (ScanResult r in results) {
-          print(r);
-          print(
-              'r.advertisementData: ${r.advertisementData.manufacturerData[0]}');
-
           setState(() {
             _resultList.add(r);
             _deviceStateList.add(false);
           });
+
+          // 5분마다 저장? raw데이터를
+          // r.device.state.listen((event) {
+
+          // })
+          if (r.device.name == 'Eyepatch22') {
+            Timer.periodic(Duration(seconds: 5), (timer) {
+              //5분마다 출력해보자..
+              // 안되고 다시 끊엇다가 연결해야 다른 값이 나오는데 어떡하지..
+              _rawDataList.add(r.advertisementData.rawBytes);
+              print(r.advertisementData.rawBytes);
+            });
+          }
+
+          // if (r.device.name == 'Eyepatch22') {
+          //   r
+          // }
         }
       });
 
@@ -112,19 +132,35 @@ class _MyHomePageState extends State<MyHomePage> {
   // }
 
   read() async {
-    print('이거!!: ${_result.advertisementData}');
+    // _result.advertisementData.
+    // read raw data
+    // print(
+    // 'advertisement data: ${HEX.encode(_result.advertisementData.rawBytes)}');
+    print(HEX.encode(_result.advertisementData.rawBytes));
+    print((_result.advertisementData.rawBytes));
+
     // _result.advertisementData.
 
     List<BluetoothService> services = await _result.device.discoverServices();
     // services
     services.forEach((service) async {
+      // print(service.uuid);
+      // if (service.uuid == '0000fff0-0000-1000-8000-00805f9b34fb') {
       var characteristics = service.characteristics;
-      print(characteristics);
       // for (BluetoothCharacteristic c in characteristics) {
-      //   List<int> value = await c.read();
-      //   print(value);
+      //   // List<int> value = await c.read();
+      //   // print(value);
+      //   print(c);
+      //   if (c.uuid.toString().contains('fff0')) {
+      //     print('set notify');
+      //     await c.setNotifyValue(true);
+      //     c.value.listen((value) async {
+      //       print('value: $value');
+      //     });
+      //   }
       // }
     });
+    // var characteristics = service.char
   }
 
   connect() async {
@@ -133,12 +169,13 @@ class _MyHomePageState extends State<MyHomePage> {
       await _result.device.connect();
       int index = _resultList.indexOf(_result);
       _deviceStateList[index] = true;
+
+      // print();
       setState(() {});
       print('연결되었습니다.');
     } catch (e) {
       print('에러: $e');
     }
-    // print(a.)
 
     read();
   }
@@ -193,15 +230,16 @@ class _MyHomePageState extends State<MyHomePage> {
                         itemBuilder: (context, index) {
                           return GestureDetector(
                             onTap: () {
-                              // if (_deviceStateList[index] == true) {
-                              //   Navigator.push(
-                              //       context,
-                              //       MaterialPageRoute(
-                              //           builder: (context) => DetailPage(
-                              //               device: _deviceList[index],
-                              //               connectionState:
-                              //                   _deviceStateList[index])));
-                              // }
+                              if (_deviceStateList[index] == true) {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => DetailPage(
+                                            // result: _resultList[index],
+                                            result: _resultList[index],
+                                            connectionState:
+                                                _deviceStateList[index])));
+                              }
                             },
                             child: ListTile(
                               title: Text(_resultList[index].device.name),
