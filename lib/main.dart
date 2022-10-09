@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'dart:math';
 
 import 'package:eyepatch_app/detailPage.dart';
 import 'package:flutter/material.dart';
@@ -38,20 +40,10 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  // final flutterReactiveBle = FlutterReactiveBle();
-  // StreamSubscription? _subscription;
-  // late final List<DiscoveredDevice> _deviceList = []; // 스캔한 기기의 목록
-  // late List<DeviceConnectionState> _deviceStateList = []; // 스캔한 기기의 연결 상태 목록
-  // late DiscoveredDevice _device; // 현재 연결 기기
-  // late StreamSubscription _deviceSubscription;
-
   FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
-  late final List<ScanResult> _resultList = [];
-  late final List<bool> _deviceStateList = []; //나중엥 변경하기
-  late final List<dynamic> _rawDataList = [];
+  late List<ScanResult> _resultList = [];
+  late List<bool> _deviceStateList = []; //나중엥 변경하기
   late ScanResult _result;
-  final StreamController _controller = StreamController.broadcast();
-  // late
   late dynamic uuid;
 
   @override
@@ -76,45 +68,29 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   scan() async {
-    _resultList.clear(); //초기화
-    _deviceStateList.clear();
-    setState(() {});
+    setState(() {
+      _resultList.clear(); //초기화
+      _deviceStateList.clear();
+      _resultList = [];
+      _deviceStateList = [];
+    });
 
     if (await getPermission()) {
       flutterBlue.startScan(timeout: const Duration(seconds: 10));
 
-      var subscription = flutterBlue.scanResults.listen((results) {
+      flutterBlue.scanResults.listen((results) {
         for (ScanResult r in results) {
-          setState(() {
-            _resultList.add(r);
-            _deviceStateList.add(false);
-          });
-
-          // 5분마다 저장? raw데이터를
-          // r.device.state.listen((event) {
-
-          // })
-          if (r.device.name == 'Eyepatch22') {
-            Timer.periodic(Duration(seconds: 5), (timer) {
-              //5분마다 출력해보자..
-              // 안되고 다시 끊엇다가 연결해야 다른 값이 나오는데 어떡하지..
-              _rawDataList.add(r.advertisementData.rawBytes);
-              print(r.advertisementData.rawBytes);
+          if (!_resultList.contains(r)) {
+            setState(() {
+              _resultList.add(r);
+              _deviceStateList.add(false);
             });
           }
-
-          // if (r.device.name == 'Eyepatch22') {
-          //   r
-          // }
         }
       });
 
       flutterBlue.stopScan();
     }
-    // setState(() {
-    //   _deviceStateList = List.filled(_deviceList.length, false);
-    // });
-    // print(_deviceList);
   }
 
   // stopScan() {
@@ -132,35 +108,30 @@ class _MyHomePageState extends State<MyHomePage> {
   // }
 
   read() async {
-    // _result.advertisementData.
-    // read raw data
-    // print(
-    // 'advertisement data: ${HEX.encode(_result.advertisementData.rawBytes)}');
-    print(HEX.encode(_result.advertisementData.rawBytes));
-    print((_result.advertisementData.rawBytes));
+    try {
+      List<BluetoothService> services = await _result.device.discoverServices();
+      // services
+      services.forEach((service) async {
+        // print(service.uuid);
+        // if (service.uuid == '0000fff0-0000-1000-8000-00805f9b34fb') {
+        var characteristics = service.characteristics;
 
-    // _result.advertisementData.
-
-    List<BluetoothService> services = await _result.device.discoverServices();
-    // services
-    services.forEach((service) async {
-      // print(service.uuid);
-      // if (service.uuid == '0000fff0-0000-1000-8000-00805f9b34fb') {
-      var characteristics = service.characteristics;
-      // for (BluetoothCharacteristic c in characteristics) {
-      //   // List<int> value = await c.read();
-      //   // print(value);
-      //   print(c);
-      //   if (c.uuid.toString().contains('fff0')) {
-      //     print('set notify');
-      //     await c.setNotifyValue(true);
-      //     c.value.listen((value) async {
-      //       print('value: $value');
-      //     });
-      //   }
-      // }
-    });
-    // var characteristics = service.char
+        // for (BluetoothCharacteristic c in characteristics) {
+        //   // List<int> value = await c.read();
+        //   // print(value);
+        //   print(c);
+        //   if (c.uuid.toString().contains('fff0')) {
+        //     print('set notify');
+        //     await c.setNotifyValue(true);
+        //     c.value.listen((value) async {
+        //       print('value: $value');
+        //     });
+        //   }
+        // }
+      });
+    } catch (e) {
+      print(e);
+    }
   }
 
   connect() async {
@@ -170,7 +141,6 @@ class _MyHomePageState extends State<MyHomePage> {
       int index = _resultList.indexOf(_result);
       _deviceStateList[index] = true;
 
-      // print();
       setState(() {});
       print('연결되었습니다.');
     } catch (e) {
