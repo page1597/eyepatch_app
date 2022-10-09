@@ -8,10 +8,14 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:hex/hex.dart';
 
 class DetailPage extends StatefulWidget {
-  final ScanResult result; // charicter정보도 받아와야하나
-  final dynamic connectionState;
+  final ScanResult result;
+  final BluetoothDeviceState deviceState;
+  final DBHelper dbHelper;
   const DetailPage(
-      {Key? key, required this.result, required this.connectionState})
+      {Key? key,
+      required this.result,
+      required this.deviceState,
+      required this.dbHelper})
       : super(key: key);
 
   @override
@@ -41,10 +45,29 @@ double calculate(Uint8List advertisingData) {
   // var temp = log(10);
 }
 
+save() {}
+
+// 온도가 갱신될 때마다 저장
+insertSql(var info, DBHelper dbHelper) async {
+  dbHelper.insertBle(Ble(
+      id: await dbHelper.getLastId(info.device.name),
+      device: info.device.id.toString(),
+      temp: calculate(info.advertisementData.rawBytes),
+      timeStamp: (DateTime.now().millisecondsSinceEpoch +
+              DateTime.now().timeZoneOffset.inMilliseconds) ~/
+          1000));
+}
+
+// 갑작스럽게 연결이 끊기거나, 끊을 때 저장
+insertCsv(var info, DBHelper dbHelper) {
+  dbHelper.sqlToCsv(info.device.name);
+  print('기록된 온도 정보가 저장되었습니다.');
+  dbHelper.dropTable();
+}
+
 // 연결이 끊겼으면 나가게?
 
 class _DetailPageState extends State<DetailPage> {
-  final DBHelper _dbHelper = DBHelper();
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,35 +76,32 @@ class _DetailPageState extends State<DetailPage> {
       ),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('device id: ${widget.result.device.id.toString()}'),
               Text(
-                  'raw data: ${HEX.encode(widget.result.advertisementData.rawBytes)}'),
+                '${widget.result.device.id.toString()}',
+                style: const TextStyle(fontSize: 18),
+              ),
+              // Text(
+              //     'raw data: ${HEX.encode(widget.result.advertisementData.rawBytes)}'),
+              const SizedBox(height: 10),
               Text(
-                  'temperature: ${calculate(widget.result.advertisementData.rawBytes)}'),
-              TextButton(
-                  onPressed: () async {
-                    _dbHelper.insertBle(Ble(
-                        id: await _dbHelper
-                            .getLastId(widget.result.device.name),
-                        device: widget.result.device.id.toString(),
-                        temp:
-                            calculate(widget.result.advertisementData.rawBytes),
-                        timeStamp: (DateTime.now().millisecondsSinceEpoch +
-                                DateTime.now().timeZoneOffset.inMilliseconds) ~/
-                            1000));
-                  },
-                  child: const Text('sqlite에 넣기')),
+                '${calculate(widget.result.advertisementData.rawBytes).toStringAsFixed(2)}C°',
+                style: const TextStyle(fontSize: 42, color: Colors.blue),
+              ),
               TextButton(
                   onPressed: () {
-                    _dbHelper.sqlToCsv(widget.result.device.name);
-                    print('기록된 온도 정보가 저장되었습니다.');
-                    _dbHelper.dropTable();
+                    insertSql(widget.result, widget.dbHelper);
                   },
-                  child: Text('csv에 저장하기'))
+                  child: const Text('sqlite에 넣기')), // 이걸 주기적으로 해야됨
+              TextButton(
+                  onPressed: () {
+                    insertCsv(widget.result, widget.dbHelper);
+                  },
+                  child: const Text('csv에 저장하기'))
             ],
           ),
         ),
