@@ -34,6 +34,7 @@ class DBHelper {
   Future<List<Ble>> getAllBle() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('EyePatch');
+    print('기록 가져오기');
 
     return List.generate(maps.length, (index) {
       return Ble(

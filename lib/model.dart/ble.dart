@@ -4,13 +4,13 @@ import 'package:eyepatch_app/database/dbHelper.dart';
 class Ble {
   final int id;
   final String device;
-  final double temp;
+  final double? temp;
   final int timeStamp;
 
   Ble(
       {required this.id,
       required this.device,
-      required this.temp,
+      this.temp,
       required this.timeStamp});
 
   Map<String, dynamic> toMap() {
