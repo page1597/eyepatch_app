@@ -45,17 +45,14 @@ double calculate(Uint8List advertisingData) {
   return c;
 }
 
-// 온도가 갱신될 때마다 저장
 insertSql(ScanResult info, DBHelper dbHelper) async {
   dbHelper.insertBle(Ble(
-      id: await dbHelper.getLastId(info.device.name) + 1,
-      device: info.device.id.toString(),
-      temp: calculate(info.advertisementData.rawBytes),
-      // timeStamp: (DateTime.now().millisecondsSinceEpoch +
-      //         DateTime.now().timeZoneOffset.inMilliseconds) ~/
-      //     1000,
-      timeStamp: DateTime.now().millisecondsSinceEpoch));
-  // timeStamp: await dbHelper.getLastId(info.device.name) + 1));
+    id: await dbHelper.getLastId(info.device.name) + 1,
+    device: info.device.id.toString(),
+    temp: calculate(info.advertisementData.rawBytes),
+    rawData: HEX.encode(info.advertisementData.rawBytes),
+    timeStamp: DateTime.now().millisecondsSinceEpoch,
+  ));
   Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
 }
 
@@ -67,17 +64,19 @@ insertCsv(ScanResult info, DBHelper dbHelper) {
   Fluttertoast.showToast(msg: '파일에 저장');
 }
 
-// 연결이 끊겼으면 나가게?
 class _DetailPageState extends State<DetailPage> {
   final StreamController<ScanResult> _dataController =
       StreamController<ScanResult>.broadcast();
-  bool isFinished = false;
+  int beforePacketNumber = 0; // 이전 패킷 넘버
+  int timerTick = 0;
+  bool inserted = false;
+  bool started = false; // 실험 시작
+
+  late Uint8List lastData = Uint8List.fromList([]);
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    isFinished = false;
     widget.dbHelper.dropTable();
 
     setState(() {});
@@ -86,18 +85,21 @@ class _DetailPageState extends State<DetailPage> {
   @override
   Widget build(BuildContext context) {
     Timer.periodic(const Duration(seconds: 30), (timer) {
+      // 40
       widget.flutterblue.startScan();
       widget.flutterblue.scanResults.listen((results) {
         for (ScanResult r in results) {
-          if (r.device.name == widget.result.device.name) {
+          if (r.device.id == widget.result.device.id) {
+            //스캔 하는 시간때문에 딜레이가 걸림..
+            // 스캔을 하는 상태여서 계속 딜레이가 걸림.. 그래서 중구난방으로 저장됨
             _dataController.sink.add(r);
           }
         }
       });
+
       widget.flutterblue.stopScan();
-      print('스캔 중지');
     });
-    setState(() {});
+
     return Scaffold(
         appBar: AppBar(
           title: Text(widget.result.device.name),
@@ -126,12 +128,17 @@ class _DetailPageState extends State<DetailPage> {
               ),
               StreamBuilder<ScanResult>(
                   stream: _dataController.stream,
-                  // initialData: [] as ScanResult,
                   builder: (context, snapshot) {
-                    // 정보가 바뀔때마다
                     if (snapshot.hasData) {
-                      if (!isFinished) {
-                        insertSql(snapshot.data!, widget.dbHelper);
+                      if (started) {
+                        if (snapshot.data!.advertisementData.rawBytes !=
+                            lastData) {
+                          insertSql(snapshot.data!, widget.dbHelper);
+
+                          // setState(() {
+                          lastData = snapshot.data!.advertisementData.rawBytes;
+                          // });
+                        }
                       }
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.start,
@@ -141,49 +148,43 @@ class _DetailPageState extends State<DetailPage> {
                             style: const TextStyle(
                                 fontSize: 42, color: Colors.blue),
                           ),
-                          const SizedBox(height: 30),
+                          const SizedBox(height: 50),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // TextButton(
-                              //     onPressed: () async {
-                              //       var a = await widget.dbHelper.getAllBle();
-                              //       for (var element in a) {
-                              //         print(element.temp);
-                              //       }
-                              //     },
-                              //     child: const Text('sql 정보 가져오기')),
                               TextButton(
                                   style: TextButton.styleFrom(
-                                    backgroundColor: Colors.blue,
+                                    backgroundColor: !started
+                                        ? const Color.fromARGB(
+                                            255, 61, 137, 199)
+                                        : const Color.fromARGB(
+                                            255, 199, 29, 17),
                                   ),
                                   onPressed: () {
-                                    setState(() {
-                                      isFinished = true;
-                                    });
                                     insertCsv(snapshot.data!, widget.dbHelper);
+                                    setState(() {
+                                      started = !started;
+                                    });
                                   },
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(4.0),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(6.0),
                                     child: Text(
-                                      '실험 종료하기 (파일 저장)',
+                                      !started ? '실험 시작' : '실험 종료',
                                       textAlign: TextAlign.center,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 16,
+                                        fontSize: 24,
                                       ),
                                     ),
-                                  ))
+                                  )),
                             ],
                           ),
                         ],
                       );
                     } else {
-                      return Container(
-                        child: Text(
-                          'loading...',
-                          style:
-                              const TextStyle(fontSize: 42, color: Colors.blue),
-                        ),
+                      return const Text(
+                        'loading...(30초)',
+                        style: TextStyle(fontSize: 42, color: Colors.blue),
                       );
                     }
                   }),

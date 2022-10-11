@@ -8,7 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 class ExternalStorageHelper {
   static Future<Directory> _createFolder(path) async {
     // print('폴더 생성!!!!!!!!!!!!!!!!');
-    const folderName = "EyePatch";
+    const folderName = "Eyepatch";
     final folderPath = Directory("$path/$folderName");
     var status = await Permission.manageExternalStorage.status;
     if (!status.isGranted) {

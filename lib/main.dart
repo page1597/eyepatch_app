@@ -228,7 +228,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                           MaterialPageRoute(
                                               builder: (context) => DetailPage(
                                                     result: _resultList[index],
-                                                    flutterblue: flutterBlue2,
+                                                    flutterblue: flutterBlue,
                                                     dbHelper: dbHelper,
                                                   )))
                                     }
