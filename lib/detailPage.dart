@@ -24,37 +24,75 @@ class DetailPage extends StatefulWidget {
   _DetailPageState createState() => _DetailPageState();
 }
 
-double calculate(Uint8List advertisingData) {
+double calculate(Uint8List advertisingData, bool isPatch) {
   if (advertisingData.isEmpty) return 0.0;
 
   ByteData byteData = advertisingData.buffer.asByteData();
-  double sensorV = byteData.getUint16(12, Endian.little) * 0.001; // 센서 내부 온도 전압
+  double ambientV =
+      byteData.getUint16(12, Endian.little) * 0.001; // 내부 전압 -> 주변온도
+  double patchV = byteData.getUint16(14, Endian.little) * 0.001; // 패치 전압
+  // 온도 센서 전압 내부, 온도센서 전압 패치
   double batteryV = byteData.getUint8(16) * 0.1; // 배터리 전압
 
-  double t = 0.0; // result
-  double c = 0.0; // result 섭씨 온도
+  double sensorT = 0.0; // result
+  double ambientC = 0.0; // result 섭씨 온도
+  double patchT = 0.0;
+  double patchC = 0.0;
   double b = 4250.0;
   double t0 = 298.15;
   double r = 75000.0;
   double r0 = 100000.0;
 
-  t = (b * t0) /
-      (b + (t0 * (log((sensorV * r) / (r0 * (batteryV - sensorV))))));
-  c = t - 273.15;
+  sensorT = (b * t0) /
+      (b + (t0 * (log((ambientV * r) / (r0 * (batteryV - ambientV))))));
+  ambientC = sensorT - 273.15;
 
-  return c;
+  patchT = (b * t0) /
+      (b + (t0 * (log((ambientV * r) / (r0 * (batteryV - patchV))))));
+  patchC = patchT - 273.15;
+
+  if (isPatch) {
+    return patchC;
+  } else {
+    return ambientC;
+  }
 }
 
-insertSql(ScanResult info, DBHelper dbHelper) async {
-  dbHelper.insertBle(Ble(
-    id: await dbHelper.getLastId(info.device.name) + 1,
-    device: info.device.id.toString(),
-    temp: calculate(info.advertisementData.rawBytes),
-    rawData: HEX.encode(info.advertisementData.rawBytes),
-    timeStamp: DateTime.now().millisecondsSinceEpoch,
-  ));
-  Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
+insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
+  if (!justButton) {
+    dbHelper.insertBle(Ble(
+      id: await dbHelper.getLastId(info.device.name) + 1,
+      device: info.device.id.toString(),
+      patchTemp: calculate(info.advertisementData.rawBytes, false),
+      ambientTemp: calculate(info.advertisementData.rawBytes, true),
+      rawData: HEX.encode(info.advertisementData.rawBytes),
+      timeStamp: DateTime.now().millisecondsSinceEpoch,
+    ));
+
+    Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
+  } else {
+    // 그냥 버튼
+    dbHelper.insertBle(Ble(
+      id: await dbHelper.getLastId(info.device.name) + 1,
+      device: info.device.id.toString(),
+      patchTemp: 0.0,
+      ambientTemp: 0.0,
+      rawData: 'button clicked',
+      timeStamp: DateTime.now().millisecondsSinceEpoch,
+    ));
+    Fluttertoast.showToast(msg: '버튼 클릭', toastLength: Toast.LENGTH_SHORT);
+  }
 }
+
+// onButtonClick(DBHelper dbHelper) async {
+//    dbHelper.insertBle(Ble(
+//     id: await dbHelper.getLastId() + 1,
+//     device: info.device.id.toString(),
+//     temp: calculate(info.advertisementData.rawBytes),
+//     rawData: HEX.encode(info.advertisementData.rawBytes),
+//     timeStamp: DateTime.now().millisecondsSinceEpoch,
+//   ));
+// }
 
 // 갑작스럽게 연결이 끊기거나, 끊을 때 저장
 insertCsv(ScanResult info, DBHelper dbHelper) {
@@ -84,7 +122,7 @@ class _DetailPageState extends State<DetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    Timer.periodic(const Duration(seconds: 30), (timer) {
+    Timer.periodic(const Duration(seconds: 7), (timer) {
       // 40
       widget.flutterblue.startScan();
       widget.flutterblue.scanResults.listen((results) {
@@ -133,7 +171,7 @@ class _DetailPageState extends State<DetailPage> {
                       if (started) {
                         if (snapshot.data!.advertisementData.rawBytes !=
                             lastData) {
-                          insertSql(snapshot.data!, widget.dbHelper);
+                          insertSql(snapshot.data!, widget.dbHelper, false);
 
                           // setState(() {
                           lastData = snapshot.data!.advertisementData.rawBytes;
@@ -144,7 +182,13 @@ class _DetailPageState extends State<DetailPage> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           Text(
-                            '${calculate(snapshot.data!.advertisementData.rawBytes)}C°',
+                            '패치: ${calculate(snapshot.data!.advertisementData.rawBytes, true)}C°',
+                            style: const TextStyle(
+                                fontSize: 42, color: Colors.blue),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            '주변: ${calculate(snapshot.data!.advertisementData.rawBytes, false)}C°',
                             style: const TextStyle(
                                 fontSize: 42, color: Colors.blue),
                           ),
@@ -154,6 +198,7 @@ class _DetailPageState extends State<DetailPage> {
                             children: [
                               TextButton(
                                   style: TextButton.styleFrom(
+                                    elevation: 5,
                                     backgroundColor: !started
                                         ? const Color.fromARGB(
                                             255, 61, 137, 199)
@@ -177,13 +222,36 @@ class _DetailPageState extends State<DetailPage> {
                                       ),
                                     ),
                                   )),
+                              const SizedBox(width: 50),
+                              TextButton(
+                                  style: TextButton.styleFrom(
+                                    elevation: 5,
+                                    backgroundColor:
+                                        Color.fromARGB(255, 87, 86, 87),
+                                  ),
+                                  onPressed: () {
+                                    // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
+                                    insertSql(
+                                        snapshot.data!, widget.dbHelper, true);
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(7.0),
+                                    child: const Text(
+                                      '버튼',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                      ),
+                                    ),
+                                  ))
                             ],
                           ),
                         ],
                       );
                     } else {
                       return const Text(
-                        'loading...(30초)',
+                        'loading...',
                         style: TextStyle(fontSize: 42, color: Colors.blue),
                       );
                     }

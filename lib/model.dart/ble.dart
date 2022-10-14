@@ -5,14 +5,17 @@ import 'package:eyepatch_app/database/dbHelper.dart';
 class Ble {
   final int id;
   final String device;
-  final double? temp;
+  final double? ambientTemp;
+  final double? patchTemp;
   final String rawData;
+
   final int timeStamp;
 
   Ble(
       {required this.id,
       required this.device,
-      this.temp,
+      this.patchTemp,
+      this.ambientTemp,
       required this.timeStamp,
       required this.rawData});
 
@@ -20,7 +23,8 @@ class Ble {
     return {
       'id': id,
       'device': device,
-      'temp': temp,
+      'patchTemp': patchTemp,
+      'ambientTemp': ambientTemp,
       'rawData': rawData,
       'timeStamp': timeStamp,
     };
