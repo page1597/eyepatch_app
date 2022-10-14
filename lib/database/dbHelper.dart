@@ -7,6 +7,10 @@ import 'package:csv/csv.dart';
 import 'externalStorageHelpder.dart';
 
 // 백그라운드로 바꾸기
+// 기기 정보 리스트 다시 확인해서
+// 큐알코드 다시 보내기 (아무래도 오늘 안에)
+// 실수로 뒤로가기 눌렀을때 여태까지 했던거 다 csv 파일에 저장
+
 class DBHelper {
   dynamic _db;
 
@@ -57,14 +61,14 @@ class DBHelper {
     return maps[maps.length - 1]['id'];
   }
 
-  // Future getListTemp() async {
-  //   final db = await database;
-  //   final List<Map<String, dynamic>> maps = await db.query('EyePatch');
-  //   if (maps.isEmpty) {
-  //     return null;
-  //   }
-  //   return maps[maps.length - 1]['temp'];
-  // }
+  Future getListTemp() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('EyePatch');
+    if (maps.isEmpty) {
+      return null;
+    }
+    return maps[maps.length - 1]['patchTemp'];
+  }
 
   Future<void> deleteBle(String device) async {
     final db = await database;
