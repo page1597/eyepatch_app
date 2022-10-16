@@ -84,16 +84,6 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
   }
 }
 
-// onButtonClick(DBHelper dbHelper) async {
-//    dbHelper.insertBle(Ble(
-//     id: await dbHelper.getLastId() + 1,
-//     device: info.device.id.toString(),
-//     temp: calculate(info.advertisementData.rawBytes),
-//     rawData: HEX.encode(info.advertisementData.rawBytes),
-//     timeStamp: DateTime.now().millisecondsSinceEpoch,
-//   ));
-// }
-
 // 갑작스럽게 연결이 끊기거나, 끊을 때 저장
 insertCsv(ScanResult info, DBHelper dbHelper) {
   dbHelper.sqlToCsv(info.device.name);
@@ -122,7 +112,7 @@ class _DetailPageState extends State<DetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    Timer.periodic(const Duration(seconds: 7), (timer) {
+    Timer.periodic(const Duration(seconds: 5), (timer) {
       // 40
       widget.flutterblue.startScan();
       widget.flutterblue.scanResults.listen((results) {
@@ -138,126 +128,138 @@ class _DetailPageState extends State<DetailPage> {
       widget.flutterblue.stopScan();
     });
 
-    return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.result.device.name),
-        ),
-        body: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
-              Text(
-                widget.result.device.id.toString(),
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                  'advertising data: ${HEX.encode(widget.result.advertisementData.rawBytes)}'),
-              const SizedBox(height: 24),
-              const Text(
-                '온도 정보: ',
-                style: TextStyle(
-                    color: Colors.blue,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 16),
-              ),
-              StreamBuilder<ScanResult>(
-                  stream: _dataController.stream,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      if (started) {
-                        if (snapshot.data!.advertisementData.rawBytes !=
-                            lastData) {
-                          insertSql(snapshot.data!, widget.dbHelper, false);
-
-                          // setState(() {
-                          lastData = snapshot.data!.advertisementData.rawBytes;
-                          // });
-                        }
-                      }
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
+    return StreamBuilder<ScanResult>(
+        stream: _dataController.stream,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            if (started) {
+              // if (snapshot.data!.advertisementData.rawBytes !=
+              //     lastData) {
+              insertSql(snapshot.data!, widget.dbHelper, false);
+              // setState(() {
+              // lastData = snapshot.data!.advertisementData.rawBytes;
+              // });
+            }
+          }
+          return WillPopScope(
+            onWillPop: () async {
+              if (snapshot.hasData && started) {
+                Fluttertoast.showToast(
+                    msg: '실험이 진행중입니다. 실험 종료 버튼을 누르고 뒤로가기 버튼을 눌러주세요.');
+                return false;
+              }
+              return true;
+            },
+            child: Scaffold(
+                appBar: AppBar(
+                  title: Text(widget.result.device.name),
+                ),
+                body: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const SizedBox(height: 10),
                           Text(
-                            '패치: ${calculate(snapshot.data!.advertisementData.rawBytes, true)}C°',
+                            widget.result.device.id.toString(),
                             style: const TextStyle(
-                                fontSize: 42, color: Colors.blue),
+                                fontSize: 20, fontWeight: FontWeight.w500),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
                           Text(
-                            '주변: ${calculate(snapshot.data!.advertisementData.rawBytes, false)}C°',
-                            style: const TextStyle(
-                                fontSize: 42, color: Colors.blue),
+                              'advertising data: ${snapshot.hasData ? HEX.encode(snapshot.data!.advertisementData.rawBytes) : ''}'),
+                          const SizedBox(height: 24),
+                          const Text(
+                            '온도 정보: ',
+                            style: TextStyle(
+                                color: Colors.blue,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 16),
                           ),
-                          const SizedBox(height: 50),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              TextButton(
-                                  style: TextButton.styleFrom(
-                                    elevation: 5,
-                                    backgroundColor: !started
-                                        ? const Color.fromARGB(
-                                            255, 61, 137, 199)
-                                        : const Color.fromARGB(
-                                            255, 199, 29, 17),
-                                  ),
-                                  onPressed: () {
-                                    insertCsv(snapshot.data!, widget.dbHelper);
-                                    setState(() {
-                                      started = !started;
-                                    });
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(6.0),
-                                    child: Text(
-                                      !started ? '실험 시작' : '실험 종료',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
+                              Text(
+                                '패치: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, true) : ''}C°',
+                                style: const TextStyle(
+                                    fontSize: 42, color: Colors.blue),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                '주변: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, false) : ''}C°',
+                                style: const TextStyle(
+                                    fontSize: 42, color: Colors.blue),
+                              ),
+                              const SizedBox(height: 50),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  TextButton(
+                                      style: TextButton.styleFrom(
+                                        elevation: 5,
+                                        backgroundColor: !started
+                                            ? const Color.fromARGB(
+                                                255, 61, 137, 199)
+                                            : const Color.fromARGB(
+                                                255, 199, 29, 17),
                                       ),
-                                    ),
-                                  )),
-                              const SizedBox(width: 50),
-                              TextButton(
-                                  style: TextButton.styleFrom(
-                                    elevation: 5,
-                                    backgroundColor:
-                                        Color.fromARGB(255, 87, 86, 87),
-                                  ),
-                                  onPressed: () {
-                                    // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
-                                    insertSql(
-                                        snapshot.data!, widget.dbHelper, true);
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(7.0),
-                                    child: const Text(
-                                      '버튼',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
+                                      onPressed: () {
+                                        if (snapshot.hasData) {
+                                          insertCsv(
+                                              snapshot.data!, widget.dbHelper);
+                                          setState(() {
+                                            started = !started;
+                                          });
+                                        } else {
+                                          Fluttertoast.showToast(
+                                              msg: '아직 온도 정보를 불러오기 전입니다.');
+                                        }
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(6.0),
+                                        child: Text(
+                                          !started ? '실험 시작' : '실험 종료',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                          ),
+                                        ),
+                                      )),
+                                  const SizedBox(width: 50),
+                                  TextButton(
+                                      style: TextButton.styleFrom(
+                                        elevation: 5,
+                                        backgroundColor: const Color.fromARGB(
+                                            255, 87, 86, 87),
                                       ),
-                                    ),
-                                  ))
+                                      onPressed: () {
+                                        // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
+                                        if (snapshot.hasData) {
+                                          insertSql(snapshot.data!,
+                                              widget.dbHelper, true);
+                                        } else {
+                                          Fluttertoast.showToast(
+                                              msg: '아직 온도 정보를 불러오기 전입니다.');
+                                        }
+                                      },
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(7.0),
+                                        child: Text(
+                                          '버튼',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                          ),
+                                        ),
+                                      ))
+                                ],
+                              ),
                             ],
-                          ),
-                        ],
-                      );
-                    } else {
-                      return const Text(
-                        'loading...',
-                        style: TextStyle(fontSize: 42, color: Colors.blue),
-                      );
-                    }
-                  }),
-            ],
-          ),
-        ));
+                          )
+                        ]))),
+          );
+        });
   }
 }
