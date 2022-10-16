@@ -1,12 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
+import 'dart:ui';
+
 import 'dart:typed_data';
 import 'package:eyepatch_app/database/dbHelper.dart';
 import 'package:eyepatch_app/model.dart/ble.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hex/hex.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class DetailPage extends StatefulWidget {
   final ScanResult result;
@@ -89,7 +96,26 @@ insertCsv(ScanResult info, DBHelper dbHelper) {
   dbHelper.sqlToCsv(info.device.name);
   Fluttertoast.showToast(msg: '기록된 온도 정보가 저장되었습니다.');
   dbHelper.dropTable();
-  Fluttertoast.showToast(msg: '파일에 저장');
+  // Fluttertoast.showToast(msg: '파일에 저장');
+}
+
+@pragma('vm:entry-point')
+void onStart(ServiceInstance service) async {
+  DartPluginRegistrant.ensureInitialized();
+
+  if (service is AndroidServiceInstance) {
+    service.on('setAsForeground').listen((event) {
+      service.setAsForegroundService();
+    });
+
+    service.on('setAsBackground').listen((event) {
+      service.setAsBackgroundService();
+    });
+  }
+
+  service.on('stopService').listen((event) {
+    service.stopSelf();
+  });
 }
 
 class _DetailPageState extends State<DetailPage> {
@@ -101,18 +127,17 @@ class _DetailPageState extends State<DetailPage> {
   bool started = false; // 실험 시작
 
   late Uint8List lastData = Uint8List.fromList([]);
+  late Timer _timer;
 
   @override
   void initState() {
     super.initState();
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
+
     widget.dbHelper.dropTable();
-
-    setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    Timer.periodic(const Duration(seconds: 5), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      // Fluttertoast.showToast(msg: '${timer.tick}');
       // 40
       widget.flutterblue.startScan();
       widget.flutterblue.scanResults.listen((results) {
@@ -121,26 +146,42 @@ class _DetailPageState extends State<DetailPage> {
             //스캔 하는 시간때문에 딜레이가 걸림..
             // 스캔을 하는 상태여서 계속 딜레이가 걸림.. 그래서 중구난방으로 저장됨
             _dataController.sink.add(r);
+            flutterLocalNotificationsPlugin.show(
+              888,
+              'Eyepatch 어플이 실행중입니다.',
+              '패치 온도: ${calculate(r.advertisementData.rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(r.advertisementData.rawBytes, false).toStringAsFixed(2)}C°',
+              const NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'my_foreground',
+                  'MY FOREGROUND SERVICE',
+                  icon: 'app_icon',
+                  ongoing: true,
+                ),
+              ),
+            );
+
+            if (started) {
+              insertSql(r, widget.dbHelper, false);
+            }
           }
         }
       });
-
       widget.flutterblue.stopScan();
     });
+    setState(() {});
+  }
 
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<ScanResult>(
         stream: _dataController.stream,
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            if (started) {
-              // if (snapshot.data!.advertisementData.rawBytes !=
-              //     lastData) {
-              insertSql(snapshot.data!, widget.dbHelper, false);
-              // setState(() {
-              // lastData = snapshot.data!.advertisementData.rawBytes;
-              // });
-            }
-          }
           return WillPopScope(
             onWillPop: () async {
               if (snapshot.hasData && started) {
@@ -205,6 +246,8 @@ class _DetailPageState extends State<DetailPage> {
                                       ),
                                       onPressed: () {
                                         if (snapshot.hasData) {
+                                          FlutterBackgroundService()
+                                              .invoke("setAsBackground");
                                           insertCsv(
                                               snapshot.data!, widget.dbHelper);
                                           setState(() {

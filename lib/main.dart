@@ -1,14 +1,42 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
 import 'package:eyepatch_app/database/devices.dart';
 import 'package:eyepatch_app/detailPage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'database/dbHelper.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // await initializeService();
   runApp(const MyApp());
+}
+
+Future<void> initializeService() async {
+  final service = FlutterBackgroundService();
+
+  await service.configure(
+    androidConfiguration: AndroidConfiguration(
+      onStart: onStart,
+      autoStart: true,
+      isForegroundMode: true,
+    ),
+    iosConfiguration: IosConfiguration(
+      autoStart: true,
+      onForeground: null,
+      onBackground: null,
+    ),
+  );
+
+  service.startService();
 }
 
 class MyApp extends StatelessWidget {
@@ -208,6 +236,37 @@ class _MyHomePageState extends State<MyHomePage> {
                     hintText: '연결할 기기의 번호를 입력하세요'),
               ),
             ),
+            // ElevatedButton(
+            //   child: const Text("Foreground Mode"),
+            //   onPressed: () {
+            //     FlutterBackgroundService().invoke("setAsForeground");
+            //   },
+            // ),
+            // ElevatedButton(
+            //   child: const Text("Background Mode"),
+            //   onPressed: () {
+            //     FlutterBackgroundService().invoke("setAsBackground");
+            //   },
+            // ),
+            // ElevatedButton(
+            //   child: Text('stop service'),
+            //   onPressed: () async {
+            //     final service = FlutterBackgroundService();
+            //     var isRunning = await service.isRunning();
+            //     if (isRunning) {
+            //       service.invoke("stopService");
+            //     } else {
+            //       service.startService();
+            //     }
+
+            //     if (!isRunning) {
+            //       text = 'Stop Service';
+            //     } else {
+            //       text = 'Start Service';
+            //     }
+            //     setState(() {});
+            //   },
+            // ),
             _deviceStateList.isNotEmpty
                 ? Expanded(
                     child: ListView.separated(
