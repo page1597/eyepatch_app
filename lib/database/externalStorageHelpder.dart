@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:intl/intl.dart';
 
 import 'package:csv/csv.dart';
 import 'package:external_path/external_path.dart';
@@ -31,7 +32,8 @@ class ExternalStorageHelper {
     return folderPath;
   }
 
-  static Future<File> _getlocalFile(String deviceName) async {
+  static Future<File> _getlocalFile(
+      String deviceName, DateTime dateTime) async {
     final path = await _localPath;
     if (deviceName == "devicelist") {
       return File("${path.path}/devicelist.csv"); // 기기 목록 리스트
@@ -41,7 +43,11 @@ class ExternalStorageHelper {
       // return File("${path.path}/${deviceName.replaceAll(':', '')}.csv");
       // print('생성한 파일 경로 리턴 전');
 
-      final file = File("${path.path}/${deviceName.replaceAll(':', '')}.csv");
+      // String formattedDate = DateFormat('MMM-d-ss-mm-kk').format(dateTime);
+      String formattedDate = DateFormat('yyyy년MM월dd일(kk시mm분)').format(dateTime);
+
+      final file = File(
+          "${path.path}/${deviceName.replaceAll(' ', '')}-$formattedDate.csv");
       if (!file.existsSync()) {
         // print('파일 생성');
         return await file.create(recursive: true);
@@ -51,9 +57,10 @@ class ExternalStorageHelper {
     }
   }
 
-  static Future<List<Object>> readFile(String deviceName) async {
+  static Future<List<Object>> readFile(
+      String deviceName, DateTime timestamp) async {
     try {
-      final file = await _getlocalFile(deviceName); // return File
+      final file = await _getlocalFile(deviceName, timestamp); // return File
       final contents = file.openRead();
       final fields = await contents
           .transform(utf8.decoder)
@@ -69,7 +76,8 @@ class ExternalStorageHelper {
 
 // file에 쓰기
   static Future<File> writeToFile(csv, String deviceName) async {
-    final file = await _getlocalFile(deviceName);
+    DateTime dateTime = DateTime.now();
+    final file = await _getlocalFile(deviceName, dateTime);
     // print('생성한 파일 경로 리턴 후');
     // if(csv)
     // return file.writeAsString('test');

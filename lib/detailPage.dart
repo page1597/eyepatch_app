@@ -14,6 +14,7 @@ import 'package:hex/hex.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 
 class DetailPage extends StatefulWidget {
   final ScanResult result;
@@ -74,6 +75,7 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
       ambientTemp: calculate(info.advertisementData.rawBytes, true),
       rawData: HEX.encode(info.advertisementData.rawBytes),
       timeStamp: DateTime.now().millisecondsSinceEpoch,
+      dateTime: DateFormat('kk시 mm분').format(DateTime.now()),
     ));
 
     Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
@@ -86,6 +88,7 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
       ambientTemp: 0.0,
       rawData: 'button clicked',
       timeStamp: DateTime.now().millisecondsSinceEpoch,
+      dateTime: DateFormat('kk시 mm분').format(DateTime.now()),
     ));
     Fluttertoast.showToast(msg: '버튼 클릭', toastLength: Toast.LENGTH_SHORT);
   }
@@ -123,9 +126,11 @@ class _DetailPageState extends State<DetailPage> {
       StreamController<ScanResult>.broadcast();
   int beforePacketNumber = 0; // 이전 패킷 넘버
   int timerTick = 0;
-  bool inserted = false;
+  bool inserted = false; // in sql
   bool started = false; // 실험 시작
+  bool noIncomingData = false;
 
+  int count = 0;
   late Uint8List lastData = Uint8List.fromList([]);
   late Timer _timer;
 
@@ -134,11 +139,24 @@ class _DetailPageState extends State<DetailPage> {
     super.initState();
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
+    setState(() {
+      inserted = false;
+    });
 
     widget.dbHelper.dropTable();
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       // Fluttertoast.showToast(msg: '${timer.tick}');
+      // timer.tick
       // 40
+      count += 1;
+      if (!inserted && count == 6 && started) {
+        // 데이터가 1분을 초과할 동안 들어오지 않는 상황
+
+        setState(() {
+          noIncomingData = true;
+        });
+      }
+
       widget.flutterblue.startScan();
       widget.flutterblue.scanResults.listen((results) {
         for (ScanResult r in results) {
@@ -149,7 +167,7 @@ class _DetailPageState extends State<DetailPage> {
             flutterLocalNotificationsPlugin.show(
               888,
               'Eyepatch 어플이 실행중입니다.',
-              '패치 온도: ${calculate(r.advertisementData.rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(r.advertisementData.rawBytes, false).toStringAsFixed(2)}C°',
+              '패치 온도: ${calculate(r.advertisementData.rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(r.advertisementData.rawBytes, false).toStringAsFixed(2)}C° / ${noIncomingData ? '데이터 오류' : '데이터 정상'}',
               const NotificationDetails(
                 android: AndroidNotificationDetails(
                   'my_foreground',
@@ -162,6 +180,10 @@ class _DetailPageState extends State<DetailPage> {
 
             if (started) {
               insertSql(r, widget.dbHelper, false);
+              setState(() {
+                inserted = true;
+                count = 0;
+              });
             }
           }
         }
@@ -174,6 +196,7 @@ class _DetailPageState extends State<DetailPage> {
   @override
   void dispose() {
     _timer.cancel();
+    // _minuteTimer.cancel();
     super.dispose();
   }
 

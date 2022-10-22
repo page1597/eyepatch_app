@@ -10,6 +10,7 @@ class Ble {
   final String rawData;
 
   final int timeStamp;
+  final String dateTime;
 
   Ble(
       {required this.id,
@@ -17,7 +18,8 @@ class Ble {
       this.patchTemp,
       this.ambientTemp,
       required this.timeStamp,
-      required this.rawData});
+      required this.rawData,
+      required this.dateTime});
 
   Map<String, dynamic> toMap() {
     return {
@@ -27,6 +29,7 @@ class Ble {
       'ambientTemp': ambientTemp,
       'rawData': rawData,
       'timeStamp': timeStamp,
+      'dateTime': dateTime,
     };
   }
 }
