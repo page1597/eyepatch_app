@@ -138,10 +138,15 @@ class _DetailPageState extends State<DetailPage> {
   bool inserted = false; // in sql
   bool started = false; // 실험 시작
   bool noDataAlarm = true;
-  bool isPatched = true;
-  bool conditionone = false;
-  bool conditiontwo = false;
-  bool conditionthree = false;
+  bool isPatched = false;
+  bool detachedCondition1 = false;
+  bool detachedCondition2 = false;
+  bool detachedCondition3 = false;
+
+  bool attatchedCondition1 = false;
+  bool attatchedCondition2 = false;
+  bool attatchedCondition3 = false;
+
   late ScanResult? previousData = null;
   late ScanResult? doublepreviousData = null;
 
@@ -182,23 +187,17 @@ class _DetailPageState extends State<DetailPage> {
 
             _dataController.sink.add(r);
             if (previousData != null) {
-              var condition1 =
-                  (calculate(rawBytes, true) - calculate(rawBytes, false))
-                          .abs() >=
-                      0.6;
+              // 1. 주변 온도 - 패치 내부 온도 > 0.6
+              detachedCondition1 =
+                  calculate(rawBytes, false) - calculate(rawBytes, true) >= 0.6;
 
-              conditionone = condition1;
-              print(
-                  '이전 데이터:${calculate(previousData!.advertisementData.rawBytes, true)}');
-              print('현재 데이터:${calculate(rawBytes, true)}');
-              var condition2 =
+              // 2. 패치 내부 온도(이전) - 패치 내부 온도(현재) > 1.5
+              detachedCondition2 =
                   calculate(previousData!.advertisementData.rawBytes, true) -
                           calculate(rawBytes, true) >=
                       1.5;
-              conditiontwo = condition2;
-
-              //패치 온도가 연속적으로 0.5 이상 떨어지는 경우
-              var condition3 = calculate(
+              // 3. 패치 온도가 연속적으로 0.5 이상 떨어지는 경우
+              detachedCondition3 = calculate(
                               previousData!.advertisementData.rawBytes, true) -
                           calculate(rawBytes, true) >=
                       0.5 &&
@@ -208,12 +207,39 @@ class _DetailPageState extends State<DetailPage> {
                               previousData!.advertisementData.rawBytes, true) >=
                       0.5;
 
-              conditionthree = condition3;
+              // < 패치 부착 조건 >
 
-              if (condition1 || condition2 || condition3) {
-                isPatched = false;
+              // 1. 패치 내부 온도 - 주변 온도 > 0.7
+              attatchedCondition1 =
+                  calculate(rawBytes, true) - calculate(rawBytes, false) >= 0.7;
+
+              // 2. 패치 내부 온도(현재) - 패치 내부 온도(이전) > 1.5
+              attatchedCondition2 = calculate(rawBytes, true) -
+                      calculate(
+                          previousData!.advertisementData.rawBytes, true) >=
+                  1.5;
+              // 3. 패치 온도가 연속적으로 0.5 이상 오르는 경우
+              attatchedCondition3 = calculate(rawBytes, true) -
+                          calculate(
+                              previousData!.advertisementData.rawBytes, true) >=
+                      0.5 &&
+                  calculate(previousData!.advertisementData.rawBytes, true) -
+                          calculate(
+                              doublepreviousData!.advertisementData.rawBytes,
+                              true) >=
+                      0.5;
+              if (isPatched) {
+                if (detachedCondition1 ||
+                    detachedCondition2 ||
+                    detachedCondition3) {
+                  isPatched = false;
+                }
               } else {
-                isPatched = true;
+                if (attatchedCondition3 ||
+                    attatchedCondition2 ||
+                    attatchedCondition3) {
+                  isPatched = true;
+                }
               }
             }
             // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
