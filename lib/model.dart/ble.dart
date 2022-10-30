@@ -7,6 +7,7 @@ class Ble {
   final String device;
   final double? ambientTemp;
   final double? patchTemp;
+  final String patched;
   final String rawData;
 
   final int timeStamp;
@@ -17,6 +18,7 @@ class Ble {
       required this.device,
       this.patchTemp,
       this.ambientTemp,
+      required this.patched,
       required this.timeStamp,
       required this.rawData,
       required this.dateTime});
@@ -27,6 +29,7 @@ class Ble {
       'device': device,
       'patchTemp': patchTemp,
       'ambientTemp': ambientTemp,
+      'patched': patched,
       'rawData': rawData,
       'timeStamp': timeStamp,
       'dateTime': dateTime,

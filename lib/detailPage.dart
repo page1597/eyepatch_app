@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
-
+import 'package:flutter/services.dart';
 import 'dart:typed_data';
 import 'package:eyepatch_app/database/dbHelper.dart';
 import 'package:eyepatch_app/model.dart/ble.dart';
@@ -15,6 +15,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:vibration/vibration.dart';
 
 class DetailPage extends StatefulWidget {
   final ScanResult result;
@@ -66,18 +68,19 @@ double calculate(Uint8List advertisingData, bool isPatch) {
   }
 }
 
-insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
+insertSql(
+    ScanResult info, DBHelper dbHelper, bool justButton, bool patched) async {
   if (!justButton) {
     dbHelper.insertBle(Ble(
       id: await dbHelper.getLastId(info.device.name) + 1,
       device: info.device.id.toString(),
       patchTemp: calculate(info.advertisementData.rawBytes, false),
       ambientTemp: calculate(info.advertisementData.rawBytes, true),
+      patched: patched ? 'O' : 'X',
       rawData: HEX.encode(info.advertisementData.rawBytes),
       timeStamp: DateTime.now().millisecondsSinceEpoch,
-      dateTime: DateFormat('kk시 mm분').format(DateTime.now()),
+      dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
     ));
-
     Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
   } else {
     // 그냥 버튼
@@ -86,9 +89,10 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
       device: info.device.id.toString(),
       patchTemp: 0.0,
       ambientTemp: 0.0,
+      patched: patched ? 'O' : 'X',
       rawData: 'button clicked',
       timeStamp: DateTime.now().millisecondsSinceEpoch,
-      dateTime: DateFormat('kk시 mm분').format(DateTime.now()),
+      dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
     ));
     Fluttertoast.showToast(msg: '버튼 클릭', toastLength: Toast.LENGTH_SHORT);
   }
@@ -99,7 +103,7 @@ insertCsv(ScanResult info, DBHelper dbHelper) {
   dbHelper.sqlToCsv(info.device.name);
   Fluttertoast.showToast(msg: '기록된 온도 정보가 저장되었습니다.');
   dbHelper.dropTable();
-  // Fluttertoast.showToast(msg: '파일에 저장');
+  Fluttertoast.showToast(msg: '파일에 저장');
 }
 
 @pragma('vm:entry-point')
@@ -122,13 +126,24 @@ void onStart(ServiceInstance service) async {
 }
 
 class _DetailPageState extends State<DetailPage> {
-  final StreamController<ScanResult> _dataController =
-      StreamController<ScanResult>.broadcast();
+  // final StreamController<ScanResult> _dataController =
+  //     StreamController<ScanResult>.broadcast();
+  final _dataController = BehaviorSubject<
+      ScanResult>(); // 2. Initiate _searchController as BehaviorSubject in stead of StreamController.
+
+  // final StreamController<ScanResult> _previousDataController =
+  //     StreamController<ScanResult>.broadcast();
   int beforePacketNumber = 0; // 이전 패킷 넘버
   int timerTick = 0;
   bool inserted = false; // in sql
   bool started = false; // 실험 시작
-  bool noIncomingData = false;
+  bool noDataAlarm = true;
+  bool isPatched = true;
+  bool conditionone = false;
+  bool conditiontwo = false;
+  bool conditionthree = false;
+  late ScanResult? previousData = null;
+  late ScanResult? doublepreviousData = null;
 
   int count = 0;
   late Uint8List lastData = Uint8List.fromList([]);
@@ -144,42 +159,89 @@ class _DetailPageState extends State<DetailPage> {
     });
 
     widget.dbHelper.dropTable();
-    _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      // Fluttertoast.showToast(msg: '${timer.tick}');
-      // timer.tick
-      // 40
-      count += 1;
-      if (!inserted && count == 6 && started) {
-        // 데이터가 1분을 초과할 동안 들어오지 않는 상황
-
-        setState(() {
-          noIncomingData = true;
-        });
+    _timer = Timer.periodic(const Duration(seconds: 7), (timer) {
+      if (previousData != null) {
+        doublepreviousData = previousData;
+      } else {
+        doublepreviousData = null;
       }
-
-      widget.flutterblue.startScan();
+      if (_dataController.hasValue) {
+        previousData = _dataController.value;
+      } else {
+        previousData = null;
+      }
+      widget.flutterblue.startScan(
+        scanMode: ScanMode.balanced,
+      );
       widget.flutterblue.scanResults.listen((results) {
         for (ScanResult r in results) {
           if (r.device.id == widget.result.device.id) {
-            //스캔 하는 시간때문에 딜레이가 걸림..
-            // 스캔을 하는 상태여서 계속 딜레이가 걸림.. 그래서 중구난방으로 저장됨
+            var rawBytes = r.advertisementData.rawBytes;
+            bool dataError = calculate(rawBytes, true).toString() == 'NaN' ||
+                calculate(rawBytes, false).toString() == 'NaN';
+
             _dataController.sink.add(r);
+            if (previousData != null) {
+              var condition1 =
+                  (calculate(rawBytes, true) - calculate(rawBytes, false))
+                          .abs() >=
+                      0.6;
+
+              conditionone = condition1;
+              print(
+                  '이전 데이터:${calculate(previousData!.advertisementData.rawBytes, true)}');
+              print('현재 데이터:${calculate(rawBytes, true)}');
+              var condition2 =
+                  calculate(previousData!.advertisementData.rawBytes, true) -
+                          calculate(rawBytes, true) >=
+                      1.5;
+              conditiontwo = condition2;
+
+              //패치 온도가 연속적으로 0.5 이상 떨어지는 경우
+              var condition3 = calculate(
+                              previousData!.advertisementData.rawBytes, true) -
+                          calculate(rawBytes, true) >=
+                      0.5 &&
+                  calculate(doublepreviousData!.advertisementData.rawBytes,
+                              true) -
+                          calculate(
+                              previousData!.advertisementData.rawBytes, true) >=
+                      0.5;
+
+              conditionthree = condition3;
+
+              if (condition1 || condition2 || condition3) {
+                isPatched = false;
+              } else {
+                isPatched = true;
+              }
+            }
+            // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
             flutterLocalNotificationsPlugin.show(
               888,
-              'Eyepatch 어플이 실행중입니다.',
-              '패치 온도: ${calculate(r.advertisementData.rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(r.advertisementData.rawBytes, false).toStringAsFixed(2)}C° / ${noIncomingData ? '데이터 오류' : '데이터 정상'}',
+              '패치 온도: ${calculate(rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(rawBytes, false).toStringAsFixed(2)}C°',
+              '${dataError ? '데이터 오류' : '데이터 정상'} / 패치 부착: ${isPatched ? 'O' : 'X'}',
               const NotificationDetails(
                 android: AndroidNotificationDetails(
-                  'my_foreground',
-                  'MY FOREGROUND SERVICE',
+                  'background_eyepatch3', 'background_eyepatch3',
                   icon: 'app_icon',
                   ongoing: true,
+                  playSound: false,
+                  enableVibration: false,
+                  onlyAlertOnce: false,
+
+                  // showWhen: true
                 ),
               ),
             );
+            if (dataError) {
+              if (noDataAlarm) {
+                Vibration.vibrate();
+              }
+            }
 
             if (started) {
-              insertSql(r, widget.dbHelper, false);
+              insertSql(r, widget.dbHelper, false, isPatched);
               setState(() {
                 inserted = true;
                 count = 0;
@@ -233,27 +295,92 @@ class _DetailPageState extends State<DetailPage> {
                           Text(
                               'advertising data: ${snapshot.hasData ? HEX.encode(snapshot.data!.advertisementData.rawBytes) : ''}'),
                           const SizedBox(height: 24),
-                          const Text(
-                            '온도 정보: ',
-                            style: TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                '온도 정보: ',
+                                style: TextStyle(
+                                    color: Colors.blue,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 16),
+                              ),
+                              TextButton(
+                                  style: TextButton.styleFrom(
+                                    elevation: 1,
+                                    backgroundColor:
+                                        Color.fromARGB(255, 231, 231, 231),
+                                  ),
+                                  onPressed: () {
+                                    // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
+                                    setState(() {
+                                      noDataAlarm = !noDataAlarm;
+                                    });
+                                  },
+                                  child: Padding(
+                                    padding: EdgeInsets.all(0.0),
+                                    child: Text(
+                                      noDataAlarm
+                                          ? '데이터 오류 알람 끄기'
+                                          : '데이터 오류 알람 켜기',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color.fromARGB(255, 196, 75, 66),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  )),
+                            ],
                           ),
+                          const SizedBox(height: 24),
                           Column(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
+                              // Text(
+                              //   // calculate(rawBytes, true).toStringAsFixed(2)
+                              //   '패치 이전의 이전 데이터: ${doublepreviousData != null ? calculate(doublepreviousData!.advertisementData.rawBytes, true).toStringAsFixed(1) : '값 받아오기 전'}C°',
+                              //   style: const TextStyle(
+                              //       fontSize: 20, color: Colors.blue),
+                              // ),
+                              // Text(
+                              //   // calculate(rawBytes, true).toStringAsFixed(2)
+                              //   '패치 이전 데이터: ${previousData != null ? calculate(previousData!.advertisementData.rawBytes, true).toStringAsFixed(1) : '값 받아오기 전'}C°',
+                              //   style: const TextStyle(
+                              //       fontSize: 20, color: Colors.blue),
+                              // ),
                               Text(
-                                '패치: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, true) : ''}C°',
+                                // calculate(rawBytes, true).toStringAsFixed(2)
+                                '패치: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, true).toStringAsFixed(1) : ''}C°',
                                 style: const TextStyle(
-                                    fontSize: 42, color: Colors.blue),
+                                    fontSize: 35, color: Colors.blue),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                '주변: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, false).toStringAsFixed(1) : ''}C°',
+                                style: const TextStyle(
+                                    fontSize: 35, color: Colors.blue),
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                '주변: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, false) : ''}C°',
+                                '부착 여부: ${isPatched ? 'O' : 'X'}',
                                 style: const TextStyle(
-                                    fontSize: 42, color: Colors.blue),
+                                    fontSize: 35, color: Colors.black),
                               ),
+                              // Text(
+                              //   '부칙 조건1 만족: ${!conditionone ? 'O' : 'X'}',
+                              //   style: const TextStyle(
+                              //       fontSize: 20, color: Colors.black),
+                              // ),
+                              // Text(
+                              //   '부착 조건2 만족: ${!conditiontwo ? 'O' : 'X'}',
+                              //   style: const TextStyle(
+                              //       fontSize: 20, color: Colors.black),
+                              // ),
+                              // Text(
+                              //   '부착 조건3 만족: ${!conditionthree ? 'O' : 'X'}',
+                              //   style: const TextStyle(
+                              //       fontSize: 20, color: Colors.black),
+                              // ),
                               const SizedBox(height: 50),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -303,7 +430,7 @@ class _DetailPageState extends State<DetailPage> {
                                         // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
                                         if (snapshot.hasData) {
                                           insertSql(snapshot.data!,
-                                              widget.dbHelper, true);
+                                              widget.dbHelper, true, isPatched);
                                         } else {
                                           Fluttertoast.showToast(
                                               msg: '아직 온도 정보를 불러오기 전입니다.');
@@ -323,7 +450,7 @@ class _DetailPageState extends State<DetailPage> {
                                 ],
                               ),
                             ],
-                          )
+                          ),
                         ]))),
           );
         });
