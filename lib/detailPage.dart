@@ -68,15 +68,13 @@ double calculate(Uint8List advertisingData, bool isPatch) {
   }
 }
 
-insertSql(
-    ScanResult info, DBHelper dbHelper, bool justButton, bool patched) async {
+insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
   if (!justButton) {
     dbHelper.insertBle(Ble(
       id: await dbHelper.getLastId(info.device.name) + 1,
       device: info.device.id.toString(),
       patchTemp: calculate(info.advertisementData.rawBytes, false),
       ambientTemp: calculate(info.advertisementData.rawBytes, true),
-      patched: patched ? 'O' : 'X',
       rawData: HEX.encode(info.advertisementData.rawBytes),
       timeStamp: DateTime.now().millisecondsSinceEpoch,
       dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
@@ -89,7 +87,6 @@ insertSql(
       device: info.device.id.toString(),
       patchTemp: 0.0,
       ambientTemp: 0.0,
-      patched: patched ? 'O' : 'X',
       rawData: 'button clicked',
       timeStamp: DateTime.now().millisecondsSinceEpoch,
       dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
@@ -133,22 +130,16 @@ class _DetailPageState extends State<DetailPage> {
 
   // final StreamController<ScanResult> _previousDataController =
   //     StreamController<ScanResult>.broadcast();
+  bool dataError = false;
   int beforePacketNumber = 0; // 이전 패킷 넘버
   int timerTick = 0;
   bool inserted = false; // in sql
   bool started = false; // 실험 시작
   bool noDataAlarm = true;
-  bool isPatched = false;
-  bool detachedCondition1 = false;
-  bool detachedCondition2 = false;
-  bool detachedCondition3 = false;
 
-  bool attatchedCondition1 = false;
-  bool attatchedCondition2 = false;
-  bool attatchedCondition3 = false;
-
-  late ScanResult? previousData = null;
-  late ScanResult? doublepreviousData = null;
+  late ScanResult? currentData = null;
+  // late ScanResult? previousData = null;
+  // late ScanResult? doublepreviousData = null;
 
   int count = 0;
   late Uint8List lastData = Uint8List.fromList([]);
@@ -164,120 +155,65 @@ class _DetailPageState extends State<DetailPage> {
     });
 
     widget.dbHelper.dropTable();
-    _timer = Timer.periodic(const Duration(seconds: 7), (timer) {
-      if (previousData != null) {
-        doublepreviousData = previousData;
-      } else {
-        doublepreviousData = null;
-      }
-      if (_dataController.hasValue) {
-        previousData = _dataController.value;
-      } else {
-        previousData = null;
-      }
-      widget.flutterblue.startScan(
-        scanMode: ScanMode.balanced,
-      );
-      widget.flutterblue.scanResults.listen((results) {
-        for (ScanResult r in results) {
-          if (r.device.id == widget.result.device.id) {
-            var rawBytes = r.advertisementData.rawBytes;
-            bool dataError = calculate(rawBytes, true).toString() == 'NaN' ||
-                calculate(rawBytes, false).toString() == 'NaN';
-
-            _dataController.sink.add(r);
-            if (previousData != null) {
-              // 1. 주변 온도 - 패치 내부 온도 > 0.6
-              detachedCondition1 =
-                  calculate(rawBytes, false) - calculate(rawBytes, true) >= 0.6;
-
-              // 2. 패치 내부 온도(이전) - 패치 내부 온도(현재) > 1.5
-              detachedCondition2 =
-                  calculate(previousData!.advertisementData.rawBytes, true) -
-                          calculate(rawBytes, true) >=
-                      1.5;
-              // 3. 패치 온도가 연속적으로 0.5 이상 떨어지는 경우
-              detachedCondition3 = calculate(
-                              previousData!.advertisementData.rawBytes, true) -
-                          calculate(rawBytes, true) >=
-                      0.5 &&
-                  calculate(doublepreviousData!.advertisementData.rawBytes,
-                              true) -
-                          calculate(
-                              previousData!.advertisementData.rawBytes, true) >=
-                      0.5;
-
-              // < 패치 부착 조건 >
-
-              // 1. 패치 내부 온도 - 주변 온도 > 0.7
-              attatchedCondition1 =
-                  calculate(rawBytes, true) - calculate(rawBytes, false) >= 0.7;
-
-              // 2. 패치 내부 온도(현재) - 패치 내부 온도(이전) > 1.5
-              attatchedCondition2 = calculate(rawBytes, true) -
-                      calculate(
-                          previousData!.advertisementData.rawBytes, true) >=
-                  1.5;
-              // 3. 패치 온도가 연속적으로 0.5 이상 오르는 경우
-              attatchedCondition3 = calculate(rawBytes, true) -
-                          calculate(
-                              previousData!.advertisementData.rawBytes, true) >=
-                      0.5 &&
-                  calculate(previousData!.advertisementData.rawBytes, true) -
-                          calculate(
-                              doublepreviousData!.advertisementData.rawBytes,
-                              true) >=
-                      0.5;
-              if (isPatched) {
-                if (detachedCondition1 ||
-                    detachedCondition2 ||
-                    detachedCondition3) {
-                  isPatched = false;
-                }
+    _timer = Timer.periodic(
+      const Duration(seconds: 15),
+      (timer) {
+        widget.flutterblue.startScan(
+          scanMode: ScanMode.balanced,
+        );
+        widget.flutterblue.scanResults.listen(
+          (results) {
+            for (ScanResult r in results) {
+              if (r.device.id == widget.result.device.id) {
+                currentData = r;
+                dataError = false; // found device
+                setState(() {});
               } else {
-                if (attatchedCondition3 ||
-                    attatchedCondition2 ||
-                    attatchedCondition3) {
-                  isPatched = true;
+                dataError = true; // not found device
+              }
+            }
+            if (currentData != null) {
+              var rawBytes = currentData!.advertisementData.rawBytes;
+              dataError = calculate(rawBytes, true).toString() == 'NaN' ||
+                  calculate(rawBytes, false).toString() == 'NaN';
+
+              _dataController.sink.add(currentData!);
+              // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
+              flutterLocalNotificationsPlugin.show(
+                888,
+                '패치 온도: ${calculate(rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(rawBytes, false).toStringAsFixed(2)}C°',
+                dataError ? '데이터 오류' : '데이터 정상',
+                const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                    'background_eyepatch3',
+                    'background_eyepatch3',
+                    icon: 'app_icon',
+                    ongoing: true,
+                    playSound: false,
+                    enableVibration: false,
+                    onlyAlertOnce: false,
+                  ),
+                ),
+              );
+              if (dataError) {
+                if (noDataAlarm) {
+                  Vibration.vibrate();
                 }
               }
-            }
-            // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
-            flutterLocalNotificationsPlugin.show(
-              888,
-              '패치 온도: ${calculate(rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(rawBytes, false).toStringAsFixed(2)}C°',
-              '${dataError ? '데이터 오류' : '데이터 정상'} / 패치 부착: ${isPatched ? 'O' : 'X'}',
-              const NotificationDetails(
-                android: AndroidNotificationDetails(
-                  'background_eyepatch3', 'background_eyepatch3',
-                  icon: 'app_icon',
-                  ongoing: true,
-                  playSound: false,
-                  enableVibration: false,
-                  onlyAlertOnce: false,
-
-                  // showWhen: true
-                ),
-              ),
-            );
-            if (dataError) {
-              if (noDataAlarm) {
-                Vibration.vibrate();
+              if (started) {
+                insertSql(currentData!, widget.dbHelper, false);
+                setState(() {
+                  inserted = true;
+                  count = 0;
+                });
               }
             }
+          },
+        );
 
-            if (started) {
-              insertSql(r, widget.dbHelper, false, isPatched);
-              setState(() {
-                inserted = true;
-                count = 0;
-              });
-            }
-          }
-        }
-      });
-      widget.flutterblue.stopScan();
-    });
+        widget.flutterblue.stopScan();
+      },
+    );
     setState(() {});
   }
 
@@ -334,8 +270,8 @@ class _DetailPageState extends State<DetailPage> {
                               TextButton(
                                   style: TextButton.styleFrom(
                                     elevation: 1,
-                                    backgroundColor:
-                                        Color.fromARGB(255, 231, 231, 231),
+                                    backgroundColor: const Color.fromARGB(
+                                        255, 231, 231, 231),
                                   ),
                                   onPressed: () {
                                     // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
@@ -344,13 +280,13 @@ class _DetailPageState extends State<DetailPage> {
                                     });
                                   },
                                   child: Padding(
-                                    padding: EdgeInsets.all(0.0),
+                                    padding: const EdgeInsets.all(0.0),
                                     child: Text(
                                       noDataAlarm
                                           ? '데이터 오류 알람 끄기'
                                           : '데이터 오류 알람 켜기',
                                       textAlign: TextAlign.center,
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Color.fromARGB(255, 196, 75, 66),
                                         fontSize: 14,
                                       ),
@@ -362,20 +298,7 @@ class _DetailPageState extends State<DetailPage> {
                           Column(
                             mainAxisAlignment: MainAxisAlignment.start,
                             children: [
-                              // Text(
-                              //   // calculate(rawBytes, true).toStringAsFixed(2)
-                              //   '패치 이전의 이전 데이터: ${doublepreviousData != null ? calculate(doublepreviousData!.advertisementData.rawBytes, true).toStringAsFixed(1) : '값 받아오기 전'}C°',
-                              //   style: const TextStyle(
-                              //       fontSize: 20, color: Colors.blue),
-                              // ),
-                              // Text(
-                              //   // calculate(rawBytes, true).toStringAsFixed(2)
-                              //   '패치 이전 데이터: ${previousData != null ? calculate(previousData!.advertisementData.rawBytes, true).toStringAsFixed(1) : '값 받아오기 전'}C°',
-                              //   style: const TextStyle(
-                              //       fontSize: 20, color: Colors.blue),
-                              // ),
                               Text(
-                                // calculate(rawBytes, true).toStringAsFixed(2)
                                 '패치: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, true).toStringAsFixed(1) : ''}C°',
                                 style: const TextStyle(
                                     fontSize: 35, color: Colors.blue),
@@ -387,26 +310,6 @@ class _DetailPageState extends State<DetailPage> {
                                     fontSize: 35, color: Colors.blue),
                               ),
                               const SizedBox(height: 20),
-                              Text(
-                                '부착 여부: ${isPatched ? 'O' : 'X'}',
-                                style: const TextStyle(
-                                    fontSize: 35, color: Colors.black),
-                              ),
-                              // Text(
-                              //   '부칙 조건1 만족: ${!conditionone ? 'O' : 'X'}',
-                              //   style: const TextStyle(
-                              //       fontSize: 20, color: Colors.black),
-                              // ),
-                              // Text(
-                              //   '부착 조건2 만족: ${!conditiontwo ? 'O' : 'X'}',
-                              //   style: const TextStyle(
-                              //       fontSize: 20, color: Colors.black),
-                              // ),
-                              // Text(
-                              //   '부착 조건3 만족: ${!conditionthree ? 'O' : 'X'}',
-                              //   style: const TextStyle(
-                              //       fontSize: 20, color: Colors.black),
-                              // ),
                               const SizedBox(height: 50),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -456,7 +359,7 @@ class _DetailPageState extends State<DetailPage> {
                                         // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
                                         if (snapshot.hasData) {
                                           insertSql(snapshot.data!,
-                                              widget.dbHelper, true, isPatched);
+                                              widget.dbHelper, true);
                                         } else {
                                           Fluttertoast.showToast(
                                               msg: '아직 온도 정보를 불러오기 전입니다.');

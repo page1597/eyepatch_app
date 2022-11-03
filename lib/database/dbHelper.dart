@@ -13,7 +13,7 @@ class DBHelper {
   Future<Database> get database async {
     if (_db != null) return _db;
     _db = openDatabase(
-      join(await getDatabasesPath(), 'EyePatch.db'),
+      join(await getDatabasesPath(), 'Eyepatch.db'),
       onCreate: (db, version) => _createDb(db),
       version: 1,
     );
@@ -22,19 +22,19 @@ class DBHelper {
 
   static void _createDb(Database db) {
     db.execute(
-      "CREATE TABLE EyePatch(id INTEGER PRIMARY KEY, device STRING, patchTemp DOUBLE, ambientTemp DOUBLE, patched STRING, rawData STRING, timeStamp INTEGER, dateTime STRING)",
+      "CREATE TABLE Eyepatch(id INTEGER PRIMARY KEY, device STRING, patchTemp DOUBLE, ambientTemp DOUBLE, rawData STRING, timeStamp INTEGER, dateTime STRING)",
     );
   }
 
   Future<void> insertBle(Ble ble) async {
     final db = await database;
-    await db.insert('EyePatch', ble.toMap(),
+    await db.insert('Eyepatch', ble.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<Ble>> getAllBle() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('EyePatch');
+    final List<Map<String, dynamic>> maps = await db.query('Eyepatch');
     print('기록 가져오기');
 
     return List.generate(maps.length, (index) {
@@ -43,7 +43,6 @@ class DBHelper {
           device: maps[index]['device'],
           patchTemp: maps[index]['patchTemp'],
           ambientTemp: maps[index]['ambientTemp'],
-          patched: maps[index]['patched'],
           rawData: maps[index]['rawData'],
           timeStamp: maps[index]['timeStamp'],
           dateTime: maps[index]['dateTime']);
@@ -52,7 +51,7 @@ class DBHelper {
 
   Future getLastId(String tableName) async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('EyePatch');
+    final List<Map<String, dynamic>> maps = await db.query('Eyepatch');
     if (maps.isEmpty) {
       return 0;
     }
@@ -61,7 +60,7 @@ class DBHelper {
 
   // Future getListTemp() async {
   //   final db = await database;
-  //   final List<Map<String, dynamic>> maps = await db.query('EyePatch');
+  //   final List<Map<String, dynamic>> maps = await db.query('Eyepatch');
   //   if (maps.isEmpty) {
   //     return null;
   //   }
@@ -71,7 +70,7 @@ class DBHelper {
   Future<void> deleteBle(String device) async {
     final db = await database;
     await db.delete(
-      'EyePatch',
+      'Eyepatch',
       where: "device = ?",
       whereArgs: [device],
     );
@@ -80,7 +79,7 @@ class DBHelper {
   Future<dynamic> getBle(String device) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = (await db.query(
-      'EyePatch',
+      'Eyepatch',
       where: 'device = ?',
       whereArgs: [device],
     ));
@@ -89,7 +88,7 @@ class DBHelper {
 
   Future<void> dropTable() async {
     final db = await database;
-    db.delete('EyePatch');
+    db.delete('Eyepatch');
   }
 
   ///////////////////////////////////////////////////////
@@ -111,7 +110,7 @@ class DBHelper {
 
   Future<void> sqlToCsv(String deviceName) async {
     final db = await database;
-    var result = await db.query('EyePatch');
+    var result = await db.query('Eyepatch');
     List<List<dynamic>> rows = [];
     List<dynamic> row = [];
     DateTime now = DateTime.now();
@@ -122,7 +121,6 @@ class DBHelper {
       //2
       row.add("patchTemp");
       row.add("ambientTemp");
-      row.add("patched");
       row.add("rawData");
       row.add("timeStamp");
       row.add('dateTime');
@@ -136,7 +134,6 @@ class DBHelper {
       List<dynamic> row = [];
       row.add(result[i]["patchTemp"]);
       row.add(result[i]["ambientTemp"]);
-      row.add(result[i]["patched"]);
       row.add(result[i]["rawData"]);
       row.add(result[i]["timeStamp"]);
       row.add(result[i]["dateTime"]);
