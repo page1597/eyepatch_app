@@ -17,6 +17,7 @@ class DBHelper {
       onCreate: (db, version) => _createDb(db),
       version: 1,
     );
+    print('getDatabasePath: $_db');
     return _db;
   }
 
@@ -35,9 +36,11 @@ class DBHelper {
   Future<List<Ble>> getAllBle() async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query('Eyepatch');
-    print('기록 가져오기');
+    String path = await getDatabasesPath();
 
-    return List.generate(maps.length, (index) {
+    print('기록 가져오기: ${path}');
+
+    List<Ble> bleList = List.generate(maps.length, (index) {
       return Ble(
           id: maps[index]['id'],
           device: maps[index]['device'],
@@ -47,6 +50,12 @@ class DBHelper {
           timeStamp: maps[index]['timeStamp'],
           dateTime: maps[index]['dateTime']);
     });
+
+    bleList.forEach((element) {
+      print(
+          'patchTemp: ${element.patchTemp}, ambientTemp: ${element.ambientTemp}, rawData: ${element.timeStamp}, dateTime: ${element.dateTime}');
+    });
+    return bleList;
   }
 
   Future getLastId(String tableName) async {

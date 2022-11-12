@@ -81,6 +81,6 @@ class ExternalStorageHelper {
     // print('생성한 파일 경로 리턴 후');
     // if(csv)
     // return file.writeAsString('test');
-    return file.writeAsString(csv, mode: FileMode.append);
+    return file.writeAsString(csv, mode: FileMode.write);
   }
 }

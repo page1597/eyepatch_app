@@ -99,7 +99,7 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
 insertCsv(ScanResult info, DBHelper dbHelper) {
   dbHelper.sqlToCsv(info.device.name);
   Fluttertoast.showToast(msg: '기록된 온도 정보가 저장되었습니다.');
-  dbHelper.dropTable();
+  // dbHelper.dropTable();
   Fluttertoast.showToast(msg: '파일에 저장');
 }
 
@@ -154,9 +154,9 @@ class _DetailPageState extends State<DetailPage> {
       inserted = false;
     });
 
-    widget.dbHelper.dropTable();
+    // widget.dbHelper.dropTable();
     _timer = Timer.periodic(
-      const Duration(seconds: 15),
+      const Duration(seconds: 10), // 스캔 주기
       (timer) {
         widget.flutterblue.startScan(
           scanMode: ScanMode.balanced,
@@ -197,7 +197,7 @@ class _DetailPageState extends State<DetailPage> {
               );
               if (dataError) {
                 if (noDataAlarm) {
-                  Vibration.vibrate();
+                  // Vibration.vibrate();
                 }
               }
               if (started) {
@@ -375,7 +375,7 @@ class _DetailPageState extends State<DetailPage> {
                                             fontSize: 24,
                                           ),
                                         ),
-                                      ))
+                                      )),
                                 ],
                               ),
                             ],
