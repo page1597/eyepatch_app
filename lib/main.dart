@@ -145,25 +145,25 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  setBleConnectionState(BluetoothDeviceState event) {
-    // int index = _resultList.indexOf(_result);
-    switch (event) {
-      case BluetoothDeviceState.disconnected:
-        Fluttertoast.showToast(msg: '연결이 끊어졌습니다.');
-        insertCsv(_resultList[_deviceIndex], dbHelper);
-        break;
-      case BluetoothDeviceState.connected:
-        Fluttertoast.showToast(msg: '연결되었습니다.');
-        break;
-      case BluetoothDeviceState.connecting:
-        break;
-      case BluetoothDeviceState.disconnecting:
-        break;
-    }
-    setState(() {
-      _deviceStateList[_deviceIndex] = event;
-    });
-  }
+  // setBleConnectionState(BluetoothDeviceState event) {
+  //   // int index = _resultList.indexOf(_result);
+  //   switch (event) {
+  //     case BluetoothDeviceState.disconnected:
+  //       Fluttertoast.showToast(msg: '연결이 끊어졌습니다.');
+  //       insertCsv(_resultList[_deviceIndex], dbHelper, startedTime);
+  //       break;
+  //     case BluetoothDeviceState.connected:
+  //       Fluttertoast.showToast(msg: '연결되었습니다.');
+  //       break;
+  //     case BluetoothDeviceState.connecting:
+  //       break;
+  //     case BluetoothDeviceState.disconnecting:
+  //       break;
+  //   }
+  //   setState(() {
+  //     _deviceStateList[_deviceIndex] = event;
+  //   });
+  // }
 
   connect() async {
     debugPrint('연결');
@@ -174,7 +174,7 @@ class _MyHomePageState extends State<MyHomePage> {
       if (_deviceStateList[_deviceIndex] == event) {
         return;
       }
-      setBleConnectionState(event);
+      // setBleConnectionState(event);
     });
 
     try {
@@ -183,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
           .connect(autoConnect: false)
           .timeout(const Duration(milliseconds: 10000), onTimeout: () {
         returnValue = Future.value(false);
-        setBleConnectionState(BluetoothDeviceState.disconnected);
+        // setBleConnectionState(BluetoothDeviceState.disconnected);
       }).then((value) => {
                 if (returnValue == null)
                   {Fluttertoast.showToast(msg: '연결되었습니다.')}
@@ -193,10 +193,10 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  disconnect() {
-    _resultList[_deviceIndex].device.disconnect();
-    insertCsv(_resultList[_deviceIndex], dbHelper);
-  }
+  // disconnect() {
+  //   _resultList[_deviceIndex].device.disconnect();
+  //   insertCsv(_resultList[_deviceIndex], dbHelper,);
+  // }
 
   @override
   Widget build(BuildContext context) {

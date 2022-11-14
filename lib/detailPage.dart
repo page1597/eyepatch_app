@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/services.dart';
@@ -17,6 +16,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:vibration/vibration.dart';
+import 'randomforestclassifier.dart';
+import 'dart:convert';
 
 class DetailPage extends StatefulWidget {
   final ScanResult result;
@@ -68,13 +69,15 @@ double calculate(Uint8List advertisingData, bool isPatch) {
   }
 }
 
-insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
+insertSql(
+    ScanResult info, DBHelper dbHelper, bool justButton, bool patched) async {
   if (!justButton) {
     dbHelper.insertBle(Ble(
       id: await dbHelper.getLastId(info.device.name) + 1,
       device: info.device.id.toString(),
       patchTemp: calculate(info.advertisementData.rawBytes, false),
       ambientTemp: calculate(info.advertisementData.rawBytes, true),
+      patched: patched ? 'O' : 'X',
       rawData: HEX.encode(info.advertisementData.rawBytes),
       timeStamp: DateTime.now().millisecondsSinceEpoch,
       dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
@@ -87,6 +90,7 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
       device: info.device.id.toString(),
       patchTemp: 0.0,
       ambientTemp: 0.0,
+      patched: patched ? 'O' : 'X',
       rawData: 'button clicked',
       timeStamp: DateTime.now().millisecondsSinceEpoch,
       dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
@@ -96,11 +100,10 @@ insertSql(ScanResult info, DBHelper dbHelper, bool justButton) async {
 }
 
 // 갑작스럽게 연결이 끊기거나, 끊을 때 저장
-insertCsv(ScanResult info, DBHelper dbHelper) {
-  dbHelper.sqlToCsv(info.device.name);
+insertCsv(ScanResult info, DBHelper dbHelper, int startedTime) {
+  dbHelper.sqlToCsv(info.device.name, startedTime);
   Fluttertoast.showToast(msg: '기록된 온도 정보가 저장되었습니다.');
   // dbHelper.dropTable();
-  Fluttertoast.showToast(msg: '파일에 저장');
 }
 
 @pragma('vm:entry-point')
@@ -123,41 +126,57 @@ void onStart(ServiceInstance service) async {
 }
 
 class _DetailPageState extends State<DetailPage> {
-  // final StreamController<ScanResult> _dataController =
-  //     StreamController<ScanResult>.broadcast();
-  final _dataController = BehaviorSubject<
-      ScanResult>(); // 2. Initiate _searchController as BehaviorSubject in stead of StreamController.
-
-  // final StreamController<ScanResult> _previousDataController =
-  //     StreamController<ScanResult>.broadcast();
+  final _dataController = BehaviorSubject<ScanResult>();
   bool dataError = false;
-  int beforePacketNumber = 0; // 이전 패킷 넘버
   int timerTick = 0;
   bool inserted = false; // in sql
   bool started = false; // 실험 시작
+  int startedTime = 0;
   bool noDataAlarm = true;
-
+  bool patched = false;
+  // bool isDuplicate = false;
+  late ScanResult? previousData = null;
   late ScanResult? currentData = null;
-  // late ScanResult? previousData = null;
-  // late ScanResult? doublepreviousData = null;
 
+  List<double> temp = [];
   int count = 0;
   late Uint8List lastData = Uint8List.fromList([]);
   late Timer _timer;
+
+  Map<String, dynamic> model = {}; // model result
+
+  Future readModel() async {
+    try {
+      var file = await rootBundle.loadString('assets/eyepatch.json');
+      Map<String, dynamic> temp;
+      temp = json.decode(file);
+      setState(() {
+        model = temp;
+      });
+    } catch (e) {
+      print(e);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
+    readModel();
     setState(() {
       inserted = false;
     });
 
     // widget.dbHelper.dropTable();
     _timer = Timer.periodic(
-      const Duration(seconds: 10), // 스캔 주기
+      const Duration(seconds: 30), // 스캔 주기
       (timer) {
+        if (_dataController.hasValue) {
+          previousData = _dataController.value; // 이전 값 받아오기
+        } else {
+          previousData = null;
+        }
         widget.flutterblue.startScan(
           scanMode: ScanMode.balanced,
         );
@@ -176,13 +195,31 @@ class _DetailPageState extends State<DetailPage> {
               var rawBytes = currentData!.advertisementData.rawBytes;
               dataError = calculate(rawBytes, true).toString() == 'NaN' ||
                   calculate(rawBytes, false).toString() == 'NaN';
-
               _dataController.sink.add(currentData!);
+
+              ///
+              if (previousData != null && !dataError) {
+                temp.add(
+                    calculate(currentData!.advertisementData.rawBytes, false));
+                temp.add(
+                    calculate(currentData!.advertisementData.rawBytes, true));
+                temp.add(calculate(
+                        currentData!.advertisementData.rawBytes, true) -
+                    calculate(currentData!.advertisementData.rawBytes, false));
+
+                RandomForestClassifier r =
+                    RandomForestClassifier.fromMap(model);
+                patched = r.predict(temp) == 1 ? true : false;
+
+                temp = [];
+                setState(() {});
+              }
+
               // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
               flutterLocalNotificationsPlugin.show(
                 888,
                 '패치 온도: ${calculate(rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(rawBytes, false).toStringAsFixed(2)}C°',
-                dataError ? '데이터 오류' : '데이터 정상',
+                '${dataError ? '데이터 오류' : '데이터 정상'} / 패치 부착: ${patched ? 'O' : 'X'}',
                 const NotificationDetails(
                   android: AndroidNotificationDetails(
                     'background_eyepatch3',
@@ -201,7 +238,7 @@ class _DetailPageState extends State<DetailPage> {
                 }
               }
               if (started) {
-                insertSql(currentData!, widget.dbHelper, false);
+                insertSql(currentData!, widget.dbHelper, false, patched);
                 setState(() {
                   inserted = true;
                   count = 0;
@@ -309,6 +346,24 @@ class _DetailPageState extends State<DetailPage> {
                                 style: const TextStyle(
                                     fontSize: 35, color: Colors.blue),
                               ),
+                              const SizedBox(height: 15),
+
+                              Text(
+                                '패치 착용: ${patched ? 'O' : 'X'}',
+                                style: const TextStyle(
+                                    fontSize: 35, color: Colors.blue),
+                              ),
+                              // const SizedBox(height: 20),
+                              // Text(
+                              //   '이전 패치: ${previousData != null ? calculate(previousData!.advertisementData.rawBytes, false).toStringAsFixed(1) : ''}C°',
+                              //   style: const TextStyle(
+                              //       fontSize: 35, color: Colors.blue),
+                              // ),
+                              // Text(
+                              //   '이전 주변: ${previousData != null ? calculate(previousData!.advertisementData.rawBytes, true).toStringAsFixed(1) : ''}C°',
+                              //   style: const TextStyle(
+                              //       fontSize: 35, color: Colors.blue),
+                              // ),
                               const SizedBox(height: 20),
                               const SizedBox(height: 50),
                               Row(
@@ -327,10 +382,12 @@ class _DetailPageState extends State<DetailPage> {
                                         if (snapshot.hasData) {
                                           FlutterBackgroundService()
                                               .invoke("setAsBackground");
-                                          insertCsv(
-                                              snapshot.data!, widget.dbHelper);
+                                          insertCsv(snapshot.data!,
+                                              widget.dbHelper, startedTime);
                                           setState(() {
                                             started = !started;
+                                            startedTime = DateTime.now()
+                                                .millisecondsSinceEpoch;
                                           });
                                         } else {
                                           Fluttertoast.showToast(
@@ -359,7 +416,7 @@ class _DetailPageState extends State<DetailPage> {
                                         // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
                                         if (snapshot.hasData) {
                                           insertSql(snapshot.data!,
-                                              widget.dbHelper, true);
+                                              widget.dbHelper, true, patched);
                                         } else {
                                           Fluttertoast.showToast(
                                               msg: '아직 온도 정보를 불러오기 전입니다.');
