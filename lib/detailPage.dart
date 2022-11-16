@@ -11,7 +11,6 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hex/hex.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:rxdart/rxdart.dart';
@@ -82,7 +81,7 @@ insertSql(
       timeStamp: DateTime.now().millisecondsSinceEpoch,
       dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
     ));
-    Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
+    // Fluttertoast.showToast(msg: 'sql에 저장', toastLength: Toast.LENGTH_SHORT);
   } else {
     // 그냥 버튼
     dbHelper.insertBle(Ble(
@@ -106,30 +105,9 @@ insertCsv(ScanResult info, DBHelper dbHelper, int startedTime) {
   // dbHelper.dropTable();
 }
 
-@pragma('vm:entry-point')
-void onStart(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
-
-  if (service is AndroidServiceInstance) {
-    service.on('setAsForeground').listen((event) {
-      service.setAsForegroundService();
-    });
-
-    service.on('setAsBackground').listen((event) {
-      service.setAsBackgroundService();
-    });
-  }
-
-  service.on('stopService').listen((event) {
-    service.stopSelf();
-  });
-}
-
 class _DetailPageState extends State<DetailPage> {
   final _dataController = BehaviorSubject<ScanResult>();
   bool dataError = false;
-  int timerTick = 0;
-  bool inserted = false; // in sql
   bool started = false; // 실험 시작
   int startedTime = 0;
   bool noDataAlarm = true;
@@ -161,108 +139,109 @@ class _DetailPageState extends State<DetailPage> {
   @override
   void initState() {
     super.initState();
+    readModel();
+
+    int tempTick = 0;
+
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
-    readModel();
-    setState(() {
-      inserted = false;
-    });
 
     // widget.dbHelper.dropTable();
     _timer = Timer.periodic(
-      const Duration(seconds: 30), // 스캔 주기
+      const Duration(seconds: 15), // 스캔 주기
       (timer) {
-        if (_dataController.hasValue) {
-          previousData = _dataController.value; // 이전 값 받아오기
-        } else {
-          previousData = null;
-        }
+        // print('타이머: ${timer.tick}');
+
         widget.flutterblue.startScan(
-          scanMode: ScanMode.balanced,
-        );
+            scanMode: ScanMode.balanced, timeout: const Duration(seconds: 14));
+
         widget.flutterblue.scanResults.listen(
           (results) {
-            for (ScanResult r in results) {
-              if (r.device.id == widget.result.device.id) {
-                currentData = r;
-                dataError = false; // found device
-                setState(() {});
-              } else {
-                dataError = true; // not found device
-              }
-            }
-            if (currentData != null) {
-              var rawBytes = currentData!.advertisementData.rawBytes;
-              dataError = calculate(rawBytes, true).toString() == 'NaN' ||
-                  calculate(rawBytes, false).toString() == 'NaN';
-              _dataController.sink.add(currentData!);
+            if (tempTick < timer.tick) {
+              // print('스캔 결과');
 
-              ///
-              if (previousData != null && !dataError) {
-                temp.add(
-                    calculate(currentData!.advertisementData.rawBytes, false));
-                temp.add(
-                    calculate(currentData!.advertisementData.rawBytes, true));
-                temp.add(calculate(
-                        currentData!.advertisementData.rawBytes, true) -
-                    calculate(currentData!.advertisementData.rawBytes, false));
-
-                RandomForestClassifier r =
-                    RandomForestClassifier.fromMap(model);
-                patched = r.predict(temp) == 1 ? true : false;
-
-                temp = [];
-                setState(() {});
-              }
-
-              // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
-              flutterLocalNotificationsPlugin.show(
-                888,
-                '패치 온도: ${calculate(rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(rawBytes, false).toStringAsFixed(2)}C°',
-                '${dataError ? '데이터 오류' : '데이터 정상'} / 패치 부착: ${patched ? 'O' : 'X'}',
-                const NotificationDetails(
-                  android: AndroidNotificationDetails(
-                    'background_eyepatch3',
-                    'background_eyepatch3',
-                    icon: 'app_icon',
-                    ongoing: true,
-                    playSound: false,
-                    enableVibration: false,
-                    onlyAlertOnce: false,
-                  ),
-                ),
-              );
-              if (dataError) {
-                if (noDataAlarm) {
-                  // Vibration.vibrate();
+              for (ScanResult r in results) {
+                if (r.device.id == widget.result.device.id) {
+                  currentData = r;
+                  dataError = false; // found device
+                  break;
+                } else {
+                  dataError = true; // not found device
                 }
               }
-              if (started) {
-                insertSql(currentData!, widget.dbHelper, false, patched);
-                setState(() {
-                  inserted = true;
-                  count = 0;
-                });
+              if (currentData != null) {
+                var rawBytes = currentData!.advertisementData.rawBytes;
+                dataError = calculate(rawBytes, true).toString() == 'NaN' ||
+                    calculate(rawBytes, false).toString() == 'NaN';
+                _dataController.sink.add(currentData!);
+
+                ///
+                if (
+                    // previousData != null
+                    // &&
+                    !dataError) {
+                  temp.add(calculate(
+                      currentData!.advertisementData.rawBytes, false));
+                  temp.add(
+                      calculate(currentData!.advertisementData.rawBytes, true));
+                  temp.add(
+                      calculate(currentData!.advertisementData.rawBytes, true) -
+                          calculate(
+                              currentData!.advertisementData.rawBytes, false));
+
+                  RandomForestClassifier r =
+                      RandomForestClassifier.fromMap(model);
+
+                  // setState(() {
+                  patched = r.predict(temp) == 1 ? true : false;
+                  temp = [];
+                  setState(() {});
+                  // });
+                }
+
+                // 5초마다 스캔을 다시해서 그때 찾으면 5초보다 더 일찍 값을 받아올 수도 있는거고 못찾으면 알람이 안뜰수도 있는거고..
+                flutterLocalNotificationsPlugin.show(
+                  888,
+                  '패치 온도: ${calculate(rawBytes, true).toStringAsFixed(2)}C° / 주변 온도: ${calculate(rawBytes, false).toStringAsFixed(2)}C°',
+                  '${dataError ? '데이터 오류' : '데이터 정상'} / 패치 부착: ${patched ? 'O' : 'X'}',
+                  const NotificationDetails(
+                    android: AndroidNotificationDetails(
+                      'background_eyepatch3',
+                      'background_eyepatch3',
+                      icon: 'app_icon',
+                      ongoing: true,
+                      playSound: false,
+                      enableVibration: false,
+                      onlyAlertOnce: false,
+                    ),
+                  ),
+                );
+                // if (dataError) {
+                //   if (noDataAlarm) {
+                //     // Vibration.vibrate();
+                //   }
+                // }
+                if (started) {
+                  insertSql(currentData!, widget.dbHelper, false, patched);
+                }
               }
+              tempTick += 1;
             }
           },
         );
-
-        widget.flutterblue.stopScan();
       },
     );
-    setState(() {});
   }
 
   @override
   void dispose() {
     _timer.cancel();
-    // _minuteTimer.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // print('빌드');
     return StreamBuilder<ScanResult>(
         stream: _dataController.stream,
         builder: (context, snapshot) {
@@ -347,25 +326,13 @@ class _DetailPageState extends State<DetailPage> {
                                     fontSize: 35, color: Colors.blue),
                               ),
                               const SizedBox(height: 15),
-
                               Text(
                                 '패치 착용: ${patched ? 'O' : 'X'}',
                                 style: const TextStyle(
                                     fontSize: 35, color: Colors.blue),
                               ),
-                              // const SizedBox(height: 20),
-                              // Text(
-                              //   '이전 패치: ${previousData != null ? calculate(previousData!.advertisementData.rawBytes, false).toStringAsFixed(1) : ''}C°',
-                              //   style: const TextStyle(
-                              //       fontSize: 35, color: Colors.blue),
-                              // ),
-                              // Text(
-                              //   '이전 주변: ${previousData != null ? calculate(previousData!.advertisementData.rawBytes, true).toStringAsFixed(1) : ''}C°',
-                              //   style: const TextStyle(
-                              //       fontSize: 35, color: Colors.blue),
-                              // ),
-                              const SizedBox(height: 20),
                               const SizedBox(height: 50),
+                              const SizedBox(height: 20),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
