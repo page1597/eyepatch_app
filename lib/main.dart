@@ -4,15 +4,15 @@ import 'dart:ui';
 import 'package:eyepatch_app/database/devices.dart';
 import 'package:eyepatch_app/detailPage.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
+// import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'database/dbHelper.dart';
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:device_info_plus/device_info_plus.dart';
+// import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+// import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,43 +20,43 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-@pragma('vm:entry-point')
-void onStart(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
+// @pragma('vm:entry-point')
+// void onStart(ServiceInstance service) async {
+//   DartPluginRegistrant.ensureInitialized();
 
-  if (service is AndroidServiceInstance) {
-    service.on('setAsForeground').listen((event) {
-      service.setAsForegroundService();
-    });
+//   if (service is AndroidServiceInstance) {
+//     service.on('setAsForeground').listen((event) {
+//       service.setAsForegroundService();
+//     });
 
-    service.on('setAsBackground').listen((event) {
-      service.setAsBackgroundService();
-    });
-  }
+//     service.on('setAsBackground').listen((event) {
+//       service.setAsBackgroundService();
+//     });
+//   }
 
-  service.on('stopService').listen((event) {
-    service.stopSelf();
-  });
-}
+//   service.on('stopService').listen((event) {
+//     service.stopSelf();
+//   });
+// }
 
-Future<void> initializeService() async {
-  final service = FlutterBackgroundService();
+// Future<void> initializeService() async {
+//   final service = FlutterBackgroundService();
 
-  await service.configure(
-    androidConfiguration: AndroidConfiguration(
-      onStart: onStart,
-      autoStart: true,
-      isForegroundMode: true,
-    ),
-    iosConfiguration: IosConfiguration(
-      autoStart: true,
-      onForeground: null,
-      onBackground: null,
-    ),
-  );
+//   await service.configure(
+//     androidConfiguration: AndroidConfiguration(
+//       onStart: onStart,
+//       autoStart: true,
+//       isForegroundMode: true,
+//     ),
+//     iosConfiguration: IosConfiguration(
+//       autoStart: true,
+//       onForeground: null,
+//       onBackground: null,
+//     ),
+//   );
 
-  service.startService();
-}
+//   service.startService();
+// }
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -64,6 +64,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      
+      
+      debugShowCheckedModeBanner: false,
       title: 'Eye Patch Scan App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -85,6 +88,7 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   FlutterBluePlus flutterBlue = FlutterBluePlus.instance;
   FlutterBluePlus flutterBlue2 = FlutterBluePlus.instance;
+
 
   late List<ScanResult> _resultList = [];
   late List<BluetoothDeviceState> _deviceStateList = []; //나중엥 변경하기
@@ -133,7 +137,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _deviceStateList = [];
       });
 
-      if (await getPermission()) {
+      // if (await getPermission()) {
         flutterBlue.startScan(timeout: const Duration(seconds: 7));
         // flutterBlue.scan()
 
@@ -158,9 +162,9 @@ class _MyHomePageState extends State<MyHomePage> {
             }
           }
         });
-      } else {
-        flutterBlue.stopScan();
-      }
+      // } else {
+      //   flutterBlue.stopScan();
+      // }
     }
   }
 
@@ -220,167 +224,152 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: Text(widget.title),
+        backgroundColor: Colors.transparent,
+        elevation: 0.0,
+        toolbarHeight: 0.0,
       ),
-      body: Center(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: TextField(
-                textInputAction: TextInputAction.search,
-                controller: _controller,
-                maxLength: 2,
-                keyboardType: TextInputType.number,
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) {
-                    setState(() {
-                      _deviceIndex = int.parse(_controller.text);
-                    });
-                  }
-                },
-                decoration: const InputDecoration(
-                    enabledBorder: UnderlineInputBorder(
-                        borderSide:
-                            BorderSide(color: Color.fromRGBO(0, 80, 157, 100))),
-                    focusedBorder: UnderlineInputBorder(
-                        borderSide:
-                            BorderSide(color: Color.fromRGBO(0, 80, 157, 100))),
-                    counterText: '',
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Color.fromRGBO(0, 80, 157, 100),
-                    ),
-                    hintText: '연결할 기기의 번호를 입력하세요'),
-              ),
-            ),
-            // ElevatedButton(
-            //   child: const Text("Foreground Mode"),
-            //   onPressed: () {
-            //     FlutterBackgroundService().invoke("setAsForeground");
-            //   },
-            // ),
-            // ElevatedButton(
-            //   child: const Text("Background Mode"),
-            //   onPressed: () {
-            //     FlutterBackgroundService().invoke("setAsBackground");
-            //   },
-            // ),
-            // ElevatedButton(
-            //   child: Text('stop service'),
-            //   onPressed: () async {
-            //     final service = FlutterBackgroundService();
-            //     var isRunning = await service.isRunning();
-            //     if (isRunning) {
-            //       service.invoke("stopService");
-            //     } else {
-            //       service.startService();
-            //     }
-
-            //     if (!isRunning) {
-            //       text = 'Stop Service';
-            //     } else {
-            //       text = 'Start Service';
-            //     }
-            //     setState(() {});
-            //   },
-            // ),
-            _deviceStateList.isNotEmpty
-                ? Expanded(
-                    child: ListView.separated(
-                        shrinkWrap: false,
-                        itemBuilder: (context, index) {
-                          return GestureDetector(
-                            onTap: () {
-                              // if (_deviceStateList[index] ==
-                              //     BluetoothDeviceState.connected) {
-                              flutterBlue.turnOff();
-                              flutterBlue.stopScan().then((value) => {
-                                    // if (value)
-                                    // print(value)
-                                    // if (flutterBlue.turnOff() == true)
-                                    {
-                                      Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (context) => DetailPage(
-                                                    result: _resultList[index],
-                                                    flutterblue: flutterBlue,
-                                                    dbHelper: dbHelper,
-                                                  )))
-                                    }
-                                  });
-
-                              // } else {
-                              //   Fluttertoast.showToast(
-                              //       msg: '기기와 연결한 후 다시 시도하세요');
-                              // }
-                            },
-                            child: ListTile(
-                              title: Text(_resultList[index].device.name),
-                              subtitle:
-                                  Text(_resultList[index].device.id.toString()),
-                              leading: const CircleAvatar(
-                                backgroundColor: Colors.blue,
-                                child: Icon(
-                                  Icons.bluetooth,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              // trailing: SizedBox(
-                              //   width: 100,
-                              //   height: 40,
-                              //   child: ElevatedButton(
-                              //     style: OutlinedButton.styleFrom(
-                              //         elevation: 0,
-                              //         shape: RoundedRectangleBorder(
-                              //           borderRadius: BorderRadius.circular(12),
-                              //         ),
-                              //         side: const BorderSide(
-                              //             color: Colors.transparent),
-                              //         backgroundColor: Colors.blue),
-                              //     onPressed: () {
-                              //       // 연결, 연결 끊기
-                              //       // _result = _resultList[index]; // 선택한 기기
-
-                              //       setState(() {
-                              //         _deviceIndex = index;
-                              //       });
-                              //       if (_deviceStateList[index] ==
-                              //           BluetoothDeviceState.disconnected) {
-                              //         connect();
-                              //       } else if (_deviceStateList[index] ==
-                              //               BluetoothDeviceState.connected ||
-                              //           _deviceStateList[index] ==
-                              //               BluetoothDeviceState.connecting) {
-                              //         disconnect();
-                              //       }
-                              //     },
-                              //     child: Text(
-                              //       _deviceStateList[index] ==
-                              //               BluetoothDeviceState.disconnected
-                              //           ? '연결하기'
-                              //           : '연결끊기',
-                              //       style: const TextStyle(color: Colors.white),
-                              //     ),
-                              //   ),
-                              // ),
-                            ),
-                          );
-                        },
-                        separatorBuilder: (context, index) {
-                          return const Divider();
-                        },
-                        itemCount: _resultList.length))
-                : Container(),
-          ],
+      body: Stack(children: [
+        Container(
+          decoration: BoxDecoration(
+            color: Color.fromARGB(235, 184, 211, 236),
+            borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(24),
+                bottomRight: Radius.circular(24)),
+          ),
+          height: MediaQuery.of(context).size.height * 0.4,
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: scan,
-        tooltip: 'scan',
-        child: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching),
+        Positioned(
+          child: Column(
+            children: [
+              const SizedBox(height: 5),
+              Padding(
+                padding: const EdgeInsets.all(22.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(20)),
+                    color: Colors.white,
+                  ),
+                  child: TextField(
+                    textInputAction: TextInputAction.search,
+                    controller: _controller,
+                    maxLength: 2,
+                    keyboardType: TextInputType.number,
+                    onSubmitted: (value) {
+                      if (value.isNotEmpty) {
+                        setState(() {
+                          _deviceIndex = int.parse(_controller.text);
+                        });
+                      }
+                    },
+                    decoration: const InputDecoration(
+                        enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.transparent)),
+                        focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.transparent)),
+                        counterText: '',
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: Color.fromARGB(199, 55, 85, 114),
+                        ),
+                        hintText: '기기의 번호를 입력하세요',
+                        hintStyle: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            height: 1.2,
+                            color: Color.fromARGB(156, 95, 127, 158))),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        _deviceStateList.isNotEmpty
+            ? Positioned(
+                top: 90,
+                left: 22,
+                right: 22,
+                child: Container(
+                  height: MediaQuery.of(context).size.height - 150,
+                  width: MediaQuery.of(context).size.width,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.3),
+                        spreadRadius: 0,
+                        blurRadius: 10.0,
+                        offset:
+                            const Offset(0, 0), // changes position of shadow
+                      ),
+                    ],
+                  ),
+                  child: ListView.separated(
+                      shrinkWrap: true,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(
+                          onTap: () {
+                            // flutterBlue.turnOff();
+                            flutterBlue.stopScan().then((value) => {
+                                  {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => DetailPage(
+                                                  result: _resultList[index],
+                                                  flutterblue: flutterBlue,
+                                                  dbHelper: dbHelper,
+                                                )))
+                                  }
+                                });
+                          },
+                          child: ListTile(
+                            title: Text(
+                              _resultList[index].device.name,
+                              style: TextStyle(
+                                  // color: Color.fromARGB(156, 5, 60, 110),
+                                  color: Color.fromARGB(199, 55, 85, 114),
+                                  fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text(
+                              _resultList[index].device.id.toString(),
+                              style: TextStyle(
+                                  color: Color.fromARGB(156, 95, 127, 158)),
+                            ),
+                            leading: const CircleAvatar(
+                              backgroundColor:
+                                  Color.fromARGB(255, 153, 191, 224),
+                              child: Icon(
+                                Icons.bluetooth,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      separatorBuilder: (context, index) {
+                        return const Divider(
+                          color: Colors.transparent,
+                        );
+                      },
+                      itemCount: _resultList.length),
+                ),
+              )
+            : Container(),
+      ]),
+      floatingActionButton: Container(
+        height: 60,
+        width: 60,
+        child: FittedBox(
+          child: FloatingActionButton(
+            onPressed: scan,
+            backgroundColor: Color.fromARGB(235, 184, 211, 236),
+            elevation: 0,
+            tooltip: 'scan',
+            child: Icon(_isScanning ? Icons.stop : Icons.bluetooth_searching),
+          ),
+        ),
       ),
     );
   }

@@ -146,12 +146,9 @@ class _DetailPageState extends State<DetailPage> {
     final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
         FlutterLocalNotificationsPlugin();
 
-    // widget.dbHelper.dropTable();
     _timer = Timer.periodic(
       const Duration(seconds: 15), // 스캔 주기
       (timer) {
-        // print('타이머: ${timer.tick}');
-
         widget.flutterblue.startScan(
             scanMode: ScanMode.balanced, timeout: const Duration(seconds: 14));
 
@@ -169,17 +166,15 @@ class _DetailPageState extends State<DetailPage> {
                   dataError = true; // not found device
                 }
               }
+              print(currentData);
+              print(currentData?.advertisementData.rawBytes);
               if (currentData != null) {
                 var rawBytes = currentData!.advertisementData.rawBytes;
                 dataError = calculate(rawBytes, true).toString() == 'NaN' ||
                     calculate(rawBytes, false).toString() == 'NaN';
                 _dataController.sink.add(currentData!);
 
-                ///
-                if (
-                    // previousData != null
-                    // &&
-                    !dataError) {
+                if (!dataError) {
                   temp.add(calculate(
                       currentData!.advertisementData.rawBytes, false));
                   temp.add(
@@ -256,155 +251,356 @@ class _DetailPageState extends State<DetailPage> {
             },
             child: Scaffold(
                 appBar: AppBar(
-                  title: Text(widget.result.device.name),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  toolbarHeight: 0,
+                  // backgroundColor: Color.fromARGB(237, 117, 164, 202),
+                  // backgroundColor: Color.fromARGB(206, 117, 164, 202),
+                  title: Text(
+                    widget.result.device.name,
+                  ),
                 ),
-                body: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 10),
-                          Text(
-                            widget.result.device.id.toString(),
-                            style: const TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w500),
+                body: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                          width: MediaQuery.of(context).size.width,
+                          height: 90,
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(14),
+                                bottomRight: Radius.circular(14)),
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.3),
+                                spreadRadius: 0,
+                                blurRadius: 3.0,
+                                offset: const Offset(
+                                    0, 5), // changes position of shadow
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          Text(
-                              'advertising data: ${snapshot.hasData ? HEX.encode(snapshot.data!.advertisementData.rawBytes) : ''}'),
-                          const SizedBox(height: 24),
-                          Row(
+                          child: Row(
+                            // crossAxisAlignment: CrossAxisAlignment.center,
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                '온도 정보: ',
-                                style: TextStyle(
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 16),
+                              const Padding(
+                                padding: EdgeInsets.only(left: 20, top: 40),
+                                child: Text(
+                                  '패치 정보',
+                                  style: TextStyle(
+                                      fontSize: 22,
+                                      color: Color.fromARGB(220, 37, 42, 46),
+                                      fontWeight: FontWeight.w700),
+                                ),
                               ),
                               TextButton(
-                                  style: TextButton.styleFrom(
-                                    elevation: 1,
-                                    backgroundColor: const Color.fromARGB(
-                                        255, 231, 231, 231),
-                                  ),
-                                  onPressed: () {
-                                    // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
-                                    setState(() {
-                                      noDataAlarm = !noDataAlarm;
-                                    });
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(0.0),
-                                    child: Text(
-                                      noDataAlarm
-                                          ? '데이터 오류 알람 끄기'
-                                          : '데이터 오류 알람 켜기',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Color.fromARGB(255, 196, 75, 66),
-                                        fontSize: 14,
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                                child: Text('뒤로가기'),
+                              ),
+                            ],
+                          )),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            left: 20.0, right: 20.0, top: 20),
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Color.fromARGB(255, 153, 191, 224),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(18.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        height: 120,
+                                        decoration: const BoxDecoration(
+                                          borderRadius: BorderRadius.all(
+                                              Radius.circular(20)),
+                                          color:
+                                              Color.fromARGB(59, 255, 255, 255),
+                                        ),
+                                        child: Center(
+                                            child: Column(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                              const Text(
+                                                '패치 온도',
+                                                style: TextStyle(
+                                                    //패치 온도
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w400,
+                                                    color: Colors.white),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                '${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, true).toStringAsFixed(1) : ''}C°',
+                                                style: const TextStyle(
+                                                    //패치 온도
+                                                    fontSize: 24,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Colors.white),
+                                              ),
+                                            ])),
                                       ),
                                     ),
-                                  )),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              Text(
-                                '패치: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, true).toStringAsFixed(1) : ''}C°',
-                                style: const TextStyle(
-                                    fontSize: 35, color: Colors.blue),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                '주변: ${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, false).toStringAsFixed(1) : ''}C°',
-                                style: const TextStyle(
-                                    fontSize: 35, color: Colors.blue),
-                              ),
-                              const SizedBox(height: 15),
-                              Text(
-                                '패치 착용: ${patched ? 'O' : 'X'}',
-                                style: const TextStyle(
-                                    fontSize: 35, color: Colors.blue),
-                              ),
-                              const SizedBox(height: 50),
-                              const SizedBox(height: 20),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  TextButton(
-                                      style: TextButton.styleFrom(
-                                        elevation: 5,
-                                        backgroundColor: !started
-                                            ? const Color.fromARGB(
-                                                255, 61, 137, 199)
-                                            : const Color.fromARGB(
-                                                255, 199, 29, 17),
+                                    const SizedBox(width: 14),
+                                    // Expanded(child: const SizedBox(height: 50)),
+                                    Expanded(
+                                      child: Container(
+                                        height: 120,
+                                        decoration: const BoxDecoration(
+                                          borderRadius: BorderRadius.all(
+                                              Radius.circular(20)),
+                                          color:
+                                              Color.fromARGB(59, 255, 255, 255),
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  '주변 온도',
+                                                  style: TextStyle(
+                                                      //주변 온도
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w400,
+                                                      color: Colors.white),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  //주변온도
+                                                  '${snapshot.hasData ? calculate(snapshot.data!.advertisementData.rawBytes, false).toStringAsFixed(1) : ''}C°',
+                                                  style: const TextStyle(
+                                                      fontSize: 24,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      color: Colors.white),
+                                                ),
+                                              ]),
+                                        ),
                                       ),
-                                      onPressed: () {
-                                        if (snapshot.hasData) {
-                                          FlutterBackgroundService()
-                                              .invoke("setAsBackground");
-                                          insertCsv(snapshot.data!,
-                                              widget.dbHelper, startedTime);
-                                          setState(() {
-                                            started = !started;
-                                            startedTime = DateTime.now()
-                                                .millisecondsSinceEpoch;
-                                          });
-                                        } else {
-                                          Fluttertoast.showToast(
-                                              msg: '아직 온도 정보를 불러오기 전입니다.');
-                                        }
-                                      },
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(6.0),
-                                        child: Text(
-                                          !started ? '실험 시작' : '실험 종료',
-                                          textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 15),
+                                Container(
+                                  width: MediaQuery.of(context).size.width,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    borderRadius: const BorderRadius.all(
+                                        Radius.circular(16)),
+                                    color: Colors.white,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const SizedBox(
+                                        width: 20,
+                                      ),
+                                      Icon(
+                                          patched
+                                              ? Icons.check_circle_outline
+                                              : Icons.warning_rounded,
+                                          color: patched
+                                              ? Color.fromARGB(
+                                                  255, 89, 219, 148)
+                                              : Color.fromARGB(
+                                                  255, 233, 103, 94)),
+                                      const SizedBox(
+                                        width: 10,
+                                      ),
+                                      Text(
+                                          '${patched ? '패치를 착용중입니다.' : '패치를 착용하고 있지 않습니다.\n패치를 착용해주세요.'}',
                                           style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 24,
-                                          ),
-                                        ),
-                                      )),
-                                  const SizedBox(width: 50),
-                                  TextButton(
-                                      style: TextButton.styleFrom(
-                                        elevation: 5,
-                                        backgroundColor: const Color.fromARGB(
-                                            255, 87, 86, 87),
-                                      ),
-                                      onPressed: () {
-                                        // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
-                                        if (snapshot.hasData) {
-                                          insertSql(snapshot.data!,
-                                              widget.dbHelper, true, patched);
-                                        } else {
-                                          Fluttertoast.showToast(
-                                              msg: '아직 온도 정보를 불러오기 전입니다.');
-                                        }
-                                      },
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(7.0),
-                                        child: Text(
-                                          '버튼',
-                                          textAlign: TextAlign.center,
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 24,
-                                          ),
-                                        ),
-                                      )),
-                                ],
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.bold,
+                                            color:
+                                                Color.fromARGB(220, 37, 42, 46),
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius:
+                                const BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.grey.withOpacity(0.3),
+                                spreadRadius: 0,
+                                blurRadius: 7.0,
+                                offset: const Offset(
+                                    0, 0), // changes position of shadow
                               ),
                             ],
                           ),
-                        ]))),
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.all(20.0),
+                                child: Container(
+                                  width: MediaQuery.of(context).size.width,
+                                  height: 190,
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Device Info',
+                                          style: const TextStyle(
+                                              fontSize: 20,
+                                              color: Color.fromARGB(
+                                                  220, 37, 42, 46),
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                        const SizedBox(height: 18),
+                                        Text(
+                                          'Device Id',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color.fromARGB(
+                                                  156, 114, 121, 128),
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        Text(
+                                          widget.result.device.id.toString(),
+                                          style: const TextStyle(
+                                              fontSize: 17,
+                                              color: Color.fromARGB(
+                                                  199, 55, 85, 114),
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                        const SizedBox(height: 15),
+                                        Text(
+                                          'Raw Data',
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color.fromARGB(
+                                                  156, 114, 121, 128),
+                                              fontWeight: FontWeight.w500),
+                                        ),
+                                        const SizedBox(
+                                          height: 5,
+                                        ),
+                                        Container(
+                                          height: 70,
+                                          // color: Colors.amber,
+                                          child: Text(
+                                            snapshot.hasData
+                                                ? HEX.encode(snapshot.data!
+                                                    .advertisementData.rawBytes)
+                                                : '',
+                                            style: const TextStyle(
+                                                color: Color.fromARGB(
+                                                    199, 55, 85, 114)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              // Row(
+                              //   mainAxisAlignment: MainAxisAlignment.center,
+                              //   children: [
+                              //     TextButton(
+                              //         style: TextButton.styleFrom(
+                              //           elevation: 5,
+                              //           backgroundColor: !started
+                              //               ? const Color.fromARGB(
+                              //                   255, 61, 137, 199)
+                              //               : const Color.fromARGB(
+                              //                   255, 199, 29, 17),
+                              //         ),
+                              //         onPressed: () {
+                              //           if (snapshot.hasData) {
+                              //             FlutterBackgroundService()
+                              //                 .invoke("setAsBackground");
+                              //             insertCsv(snapshot.data!,
+                              //                 widget.dbHelper, startedTime);
+                              //             setState(() {
+                              //               started = !started;
+                              //               startedTime = DateTime.now()
+                              //                   .millisecondsSinceEpoch;
+                              //             });
+                              //           } else {
+                              //             Fluttertoast.showToast(
+                              //                 msg: '아직 온도 정보를 불러오기 전입니다.');
+                              //           }
+                              //         },
+                              //         child: Padding(
+                              //           padding: const EdgeInsets.all(6.0),
+                              //           child: Text(
+                              //             !started ? '실험 시작' : '실험 종료',
+                              //             textAlign: TextAlign.center,
+                              //             style: const TextStyle(
+                              //               color: Colors.white,
+                              //               fontSize: 24,
+                              //             ),
+                              //           ),
+                              //         )),
+                              //     const SizedBox(width: 50),
+                              //     TextButton(
+                              //         style: TextButton.styleFrom(
+                              //           elevation: 5,
+                              //           backgroundColor: const Color.fromARGB(
+                              //               255, 87, 86, 87),
+                              //         ),
+                              //         onPressed: () {
+                              //           // 그냥 버튼 눌렀다는 표시와 타임스탬프를 넣는다.
+                              //           if (snapshot.hasData) {
+                              //             insertSql(snapshot.data!,
+                              //                 widget.dbHelper, true, patched);
+                              //           } else {
+                              //             Fluttertoast.showToast(
+                              //                 msg: '아직 온도 정보를 불러오기 전입니다.');
+                              //           }
+                              //         },
+                              //         child: const Padding(
+                              //           padding: EdgeInsets.all(7.0),
+                              //           child: Text(
+                              //             '버튼',
+                              //             textAlign: TextAlign.center,
+                              //             style: TextStyle(
+                              //               color: Colors.white,
+                              //               fontSize: 24,
+                              //             ),
+                              //           ),
+                              //         )),
+                              //   ],
+                              // ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ])),
           );
         });
   }

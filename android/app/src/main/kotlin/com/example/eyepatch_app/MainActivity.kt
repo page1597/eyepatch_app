@@ -1,4 +1,4 @@
-package com.example.eyepatch_app
+package com.eyepatch.eyepatch_app
 
 import io.flutter.embedding.android.FlutterActivity
 
