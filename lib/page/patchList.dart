@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:eyepatch_app/model.dart/eyePatch.dart';
 import 'package:eyepatch_app/model.dart/eyePatchList.dart';
 import 'package:eyepatch_app/page/patchDetail.dart';
+import 'package:eyepatch_app/patchController.dart';
 import 'package:eyepatch_app/style/palette.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -12,7 +14,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:eyepatch_app/database/devices.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:intl/intl.dart';
 import 'package:loading_indicator/loading_indicator.dart';
+import 'package:get/get.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class PatchList extends StatefulWidget {
   const PatchList({super.key});
@@ -22,7 +27,7 @@ class PatchList extends StatefulWidget {
 }
 
 class _PatchListState extends State<PatchList> {
-  EyePatchList _eyePatchList = EyePatchList();
+  // EyePatchList _eyePatchList = EyePatchList();
   var eyePatchCount = 0;
   var showAddDialog = false;
 
@@ -36,6 +41,8 @@ class _PatchListState extends State<PatchList> {
   BluetoothDevice device = BluetoothDevice.fromId('');
   late Timer _timer;
   late Future<List<ScanResult>> _scan1;
+
+  final controller = Get.put(Controller());
   @override
   void initState() {
     super.initState();
@@ -45,66 +52,95 @@ class _PatchListState extends State<PatchList> {
 
     _scan1 = scan1();
 
-    // _resultList.clear();
+    // 현재 연결되어 있는 기기
+
+    // _resultList.clear()
 
     // WidgetsBinding.instance.addPostFrameCallback((_) {
     storage.ready.then((_) {
+      print("ready~!!!!");
+      print(storage.getItem('eyePatchList'));
       // storage.dispose();
+      // storage.clear();
       List<dynamic> eyePatchList = storage.getItem('eyePatchList');
+      print(storage.getItem('eyePatchList').length);
+      print(storage.getItem('eyePatchList')[0]['ble']);
       EyePatchList temp = EyePatchList();
+      bool connected = false;
 
       for (var item in eyePatchList) {
-        temp.eyePatches.add(EyePatch(
-            bleAddress: item['bleAddress'],
-            name: item['name'],
-            time: item['time'],
-            birth: item['birth'],
-            connected: item['connected']));
+        print(item['ble']);
+        // flutterBlue.connectedDevices.then((devices) => {
+        //       devices.forEach((device) {
+        //         if (device.id == item["ble"]) {
+        //           connected = true;
+        //         }
+        //       })
+        //       // if (devices.contains(item))
+        //       // devices.contains(item)
+        //     });
+
+        temp.eyePatches.add(
+          EyePatch(
+              ble: item['ble'],
+              name: item['name'],
+              time: item['time'],
+              birth: item['birth'],
+              connected: item['connected'],
+              leftRatio: item['leftRatio']),
+        );
       }
-      setState(() {
-        _eyePatchList = temp;
-      });
+      Get.find<Controller>().updateList(temp);
+
+      // Get.find<Controller>().setState(() {
+      //   _eyePatchList = temp;
+      // });
+
+// 안드로이드에서 특히, 몇시간 동안 돌려보기 꺼지는지 확인 .
+      // 백그라운드 동작하게 하기.
+      // device.connect();
+      // 4/4 4:17 device.connect(autoConnect: true); 로 변경하기
 
       // _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      //   // 안드로이드에서 특히, 몇시간 동안 돌려보기 꺼지는지 확인 . 백그라운드 동작하게 하기.
-      //   bool isNearbyDevice = false;
       //   var connectedDevices = flutterBlue.connectedDevices; // 현재 연결되어있는 기기
 
-      //   // device.connect();
-      //   // 4/4 4:17 device.connect(autoConnect: true); 로 변경하기
+      //   connectedDevices.then((devices) async {
+      //     // 연결되어 있는 기기가 없을 때
+      //     if (devices.isEmpty) {
+      //       for (var element in eyePatchList) {
+      //         device = BluetoothDevice.fromId(element['ble']);
+      //         connect(device);
+      //       }
 
-      //   // 스캔해서 가까이 있는 기기가 있으면 자동 연결
-      //   connectedDevices.then((value) async {
-      //     if (value.isEmpty) {
-      //       var subscription = await scan();
-      //       subscription.onData((data) {
-      //         for (var element in data) {
-      //           for (var patch in _eyePatchList.eyePatches) {
-      //             if (element.device.id.id == patch.bleAddress) {
-      //               isNearbyDevice = true;
-      //               setState(() {
-      //                 device = BluetoothDevice.fromId(element.device.id.id);
-      //               });
-      //               connect(device); // 근데 하나만 연결해야됨
-      //               subscription.cancel();
-      //             } else {
-      //               isNearbyDevice = false;
-      //             }
-      //           }
-      //         }
-      //       });
+      //       // var subscription = await scan();
+      //       // subscription.onData((data) {
+      //       //   for (var element in data) {
+      //       //     for (var patch in _eyePatchList.eyePatches) {
+      //       //       if (element.device.id.id == patch.ble) {
+      //       //         isNearbyDevice = true;
+      //       //         setState(() {
+      //       //           device = BluetoothDevice.fromId(element.device.id.id);
+      //       //         });
+      //       //         connect(device); // 근데 하나만 연결해야됨
+      //       //         subscription.cancel();
+      //       //       } else {
+      //       //         isNearbyDevice = false;
+      //       //       }
+      //       //     }
+      //       //   }
+      //       // });
       //     } else {
-      //       isNearbyDevice = true; // 이미 연결된 기기가 있을 경우
+      //       // isNearbyDevice = true; // 이미 연결된 기기가 있을 경우
       //     }
       //   });
-      //   if (!isNearbyDevice) {
-      //     Fluttertoast.showToast(msg: '주변에 있는 기기(패치)가 없습니다.');
-      //   }
+      //   // if (!isNearbyDevice) {
+      //   //   Fluttertoast.showToast(msg: '주변에 있는 기기(패치)가 없습니다.');
+      //   // }
       // });
     });
     // });
 
-    if (storage.getItem('eyePatchList') != null) {}
+    // if (storage.getItem('eyePatchList') != null) {}
   }
 
   @override
@@ -143,57 +179,85 @@ class _PatchListState extends State<PatchList> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          height: 55,
-          alignment: Alignment.center,
-          child: const Text(
-            '내 아이패치 목록',
-            style: TextStyle(
-                color: Palette.black,
-                fontSize: 16,
-                fontWeight: FontWeight.bold),
-          ),
-        ),
-        TextButton(
-            onPressed: () {
-              print(storage.getItem('eyePatchList'));
-              flutterBlue.connectedDevices
-                  .then((value) => {print(value)}); // 현재 연결되어 있는 기기
-            },
-            child: const Text('eyePatchList')),
-        TextButton(
-            onPressed: () {
-              scan();
-            },
-            child: const Text('scan')),
-        Flexible(
-          child: Container(
-            color: Palette.background,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: GridView.builder(
-                itemCount: _eyePatchList.eyePatches.length + 1,
-                itemBuilder: ((context, index) {
-                  return index == _eyePatchList.eyePatches.length
-                      ? addEyePatch()
-                      : eyePatch(index);
-                }),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    childAspectRatio: 7 / 6,
-                    mainAxisSpacing: 20,
-                    crossAxisSpacing: 20),
+    print("빌드");
+    // EyePatchList eyePatchList = controller.eyePatchList;
+    // print(eyePatchList);
+    bool connected = false;
+    flutterBlue.connectedDevices.then((devices) => {
+          devices.forEach((device) {
+            controller.eyePatchList.eyePatches.forEach((element) {
+              print(element.ble);
+              if (element.ble == device.id.toString()) {
+                // connected = true;
+                Get.find<Controller>()
+                    .updateElement(element.ble, "connected", true);
+              }
+            });
+
+            // if (device.id == item["ble"]) {
+            //   connected = true;
+            // }
+          })
+          // if (devices.contains(item))
+          // devices.contains(item)
+        });
+    return GetBuilder<Controller>(
+      builder: (controller) {
+        return Column(
+          children: [
+            Container(
+              height: 55,
+              alignment: Alignment.center,
+              child: const Text(
+                '내 아이패치 목록',
+                style: TextStyle(
+                    color: Palette.black,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-        ),
-        Container(
-          color: Colors.white,
-          height: 120,
-        )
-      ],
+            TextButton(
+                onPressed: () {
+                  print(storage.getItem('eyePatchList'));
+                  flutterBlue.connectedDevices
+                      .then((value) => {print(value)}); // 현재 연결되어 있는 기기
+                },
+                child: const Text('eyePatchList')),
+            // TextButton(
+            //     onPressed: () {
+            //       scan();
+            //     },
+            //     child: const Text('scan')),
+            Flexible(
+              child: Container(
+                color: Palette.primary3,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: GridView.builder(
+                    itemCount: controller.eyePatchList.eyePatches.length + 1,
+                    itemBuilder: ((context, index) {
+                      return index == controller.eyePatchList.eyePatches.length
+                          ? addEyePatch()
+                          : eyePatch(index);
+                    }),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 7 / 6,
+                            mainAxisSpacing: 20,
+                            crossAxisSpacing: 20),
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              color: Colors.white,
+              height: 120,
+            )
+          ],
+        );
+      },
+      // child:
     );
   }
 
@@ -207,11 +271,11 @@ class _PatchListState extends State<PatchList> {
 
     flutterBlue.scanResults.listen((results) {
       for (ScanResult r in results) {
-        print(r);
-        for (var element in devicesList) {
-          if (!_resultList.contains(r)) {
-            _resultList.add(r);
-          }
+        // print(r);
+        // for (var element in devicesList) {
+        if (!_resultList.contains(r)) {
+          _resultList.add(r);
+          // }
         }
       }
     });
@@ -232,7 +296,6 @@ class _PatchListState extends State<PatchList> {
 
     var subscription = flutterBlue.scanResults.listen((results) {
       for (ScanResult r in results) {
-        print(r.advertisementData);
         r.device.state.listen((event) {
           if (BluetoothDeviceState.connected == event) {
             disconnect(r.device); // 모든 기기 연결 해제
@@ -241,18 +304,19 @@ class _PatchListState extends State<PatchList> {
 
         if (r.device.name == 'DS') {
           print('advertisement 데이터 입니다.');
-          print(r.advertisementData);
+          // print(r.advertisementData);
         }
         // print(r);
         if (!_resultList.contains(r)) {
-          print(r);
+          // print(r);
           if (mounted) {
             setState(() {
               _resultList.add(r);
             });
           }
-        } else
-          print("???");
+        }
+        // else
+        // print("???");
       }
     });
     flutterBlue.stopScan();
@@ -265,9 +329,9 @@ class _PatchListState extends State<PatchList> {
   // 2. 바로 연결
 
   connect(BluetoothDevice device) async {
+    EyePatchList eyePatchList = controller.eyePatchList;
     Future<bool>? returnValue;
-
-    bool isNearbyDevice = false;
+    // bool isNearbyDevice = false;
 
     device.state.listen((event) {
       if (BluetoothDeviceState.connected == event) return;
@@ -275,25 +339,24 @@ class _PatchListState extends State<PatchList> {
 
     var connectDeviceIndex = 0;
 
-    for (var patch in _eyePatchList.eyePatches) {
-      if (patch.bleAddress == device.id.id) {
-        connectDeviceIndex = _eyePatchList.eyePatches.indexOf(patch);
+    for (var patch in eyePatchList.eyePatches) {
+      if (patch.ble == device.id.id) {
+        connectDeviceIndex = eyePatchList.eyePatches.indexOf(patch);
       }
-      var index = _eyePatchList.eyePatches.indexOf(patch);
+      var index = eyePatchList.eyePatches.indexOf(patch);
 
       setState(() {
-        _eyePatchList.eyePatches[index] = EyePatch(
-            bleAddress: patch.bleAddress,
+        eyePatchList.eyePatches[index] = EyePatch(
+            ble: patch.ble,
             name: patch.name,
             time: patch.time,
             birth: patch.birth,
-            connected: false); // 전부 connected: false
+            connected: false,
+            leftRatio: patch.leftRatio); // 전부 connected: false
       });
     }
-    storage.ready.then((_) =>
-        storage.setItem('eyePatchList', _eyePatchList.toJSONEncodable()));
-
-    print(connectDeviceIndex);
+    storage.ready.then(
+        (_) => storage.setItem('eyePatchList', eyePatchList.toJSONEncodable()));
 
     try {
       await device.connect(autoConnect: true).timeout(
@@ -306,22 +369,24 @@ class _PatchListState extends State<PatchList> {
                 // isNearbyDevice = false,
                 Fluttertoast.showToast(
                     msg:
-                        '${_eyePatchList.eyePatches[connectDeviceIndex].name} 와 연결되었습니다.'),
+                        '${eyePatchList.eyePatches[connectDeviceIndex].name} 와 연결되었습니다.'),
                 debugPrint('연결되었습니다: $connectDeviceIndex'),
                 setState(() {
-                  _eyePatchList.eyePatches[connectDeviceIndex] = EyePatch(
-                      bleAddress: _eyePatchList
-                          .eyePatches[connectDeviceIndex].bleAddress,
-                      name: _eyePatchList.eyePatches[connectDeviceIndex].name,
-                      time: _eyePatchList.eyePatches[connectDeviceIndex].time,
-                      birth: _eyePatchList.eyePatches[connectDeviceIndex].birth,
-                      connected: true);
+                  eyePatchList.eyePatches[connectDeviceIndex] = EyePatch(
+                      ble: eyePatchList.eyePatches[connectDeviceIndex].ble,
+                      name: eyePatchList.eyePatches[connectDeviceIndex].name,
+                      time: eyePatchList.eyePatches[connectDeviceIndex].time,
+                      birth: eyePatchList.eyePatches[connectDeviceIndex].birth,
+                      connected: true,
+                      leftRatio: eyePatchList
+                          .eyePatches[connectDeviceIndex].leftRatio);
                 }),
                 storage.ready.then((_) => storage.setItem(
-                    'eyePatchList', _eyePatchList.toJSONEncodable())),
+                    'eyePatchList', eyePatchList.toJSONEncodable())),
               }
             else
-              debugPrint('timeOut error'),
+              // debugPrint('timeOut error'),
+              Fluttertoast.showToast(msg: "연결 시간이 초과되었습니다.")
           });
     } catch (e) {
       debugPrint('에러: $e');
@@ -329,22 +394,24 @@ class _PatchListState extends State<PatchList> {
   }
 
   disconnect(BluetoothDevice device) {
+    EyePatchList eyePatchList = controller.eyePatchList;
     device.disconnect().then((value) {
-      for (var patch in _eyePatchList.eyePatches) {
-        if (patch.bleAddress == device.id.id) {
-          var index = _eyePatchList.eyePatches.indexOf(patch);
+      for (var patch in eyePatchList.eyePatches) {
+        if (patch.ble == device.id.id) {
+          var index = eyePatchList.eyePatches.indexOf(patch);
           setState(() {
-            _eyePatchList.eyePatches[index] = EyePatch(
-                bleAddress: patch.bleAddress,
+            eyePatchList.eyePatches[index] = EyePatch(
+                ble: patch.ble,
                 name: patch.name,
                 time: patch.time,
                 birth: patch.birth,
-                connected: false);
+                connected: false,
+                leftRatio: patch.leftRatio);
           });
         }
       }
       storage.ready.then((_) =>
-          storage.setItem('eyePatchList', _eyePatchList.toJSONEncodable()));
+          storage.setItem('eyePatchList', eyePatchList.toJSONEncodable()));
     });
     setState(() {
       selectedIndex = -1;
@@ -352,6 +419,7 @@ class _PatchListState extends State<PatchList> {
   }
 
   GestureDetector eyePatch(var index) {
+    EyePatchList eyePatchList = controller.eyePatchList;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -359,9 +427,10 @@ class _PatchListState extends State<PatchList> {
             MaterialPageRoute(
               builder: (context) => PatchDetail(
                   connectedDevice: device,
-                  eyePatchInfo: _eyePatchList.eyePatches[index],
+                  ble: eyePatchList.eyePatches[index].ble,
+                  // eyePatchInfo: eyePatchList.eyePatches[index],
                   isConnected:
-                      _eyePatchList.eyePatches[index].connected ? true : false),
+                      eyePatchList.eyePatches[index].connected ? true : false),
             ));
       },
       child: Card(
@@ -380,12 +449,21 @@ class _PatchListState extends State<PatchList> {
                 children: [
                   GestureDetector(
                     onTap: () {
+                      flutterBlue.connectedDevices
+                          .then((value) => value.forEach((element) {
+                                if (element.id.toString() ==
+                                    eyePatchList.eyePatches[index].ble) {
+                                  // 지우면 연결도 끊기
+                                  disconnect(element);
+                                }
+                              }));
+
                       storage.ready.then((_) async {
                         setState(() {
-                          _eyePatchList.eyePatches.removeAt(index);
+                          eyePatchList.eyePatches.removeAt(index);
                         });
                         await storage.setItem(
-                            'eyePatchList', _eyePatchList.toJSONEncodable());
+                            'eyePatchList', eyePatchList.toJSONEncodable());
                       });
                     },
                     child: const Icon(
@@ -396,7 +474,7 @@ class _PatchListState extends State<PatchList> {
                   ),
                   Container(
                     decoration: BoxDecoration(
-                        color: _eyePatchList.eyePatches[index].connected
+                        color: eyePatchList.eyePatches[index].connected
                             ? Palette.primary1
                             : Palette.red,
                         borderRadius: BorderRadius.circular(50)),
@@ -407,7 +485,7 @@ class _PatchListState extends State<PatchList> {
               ),
               const SizedBox(height: 7),
               Text(
-                _eyePatchList.eyePatches[index].name,
+                eyePatchList.eyePatches[index].name,
                 style: const TextStyle(
                     color: Palette.black,
                     fontSize: 20,
@@ -420,7 +498,7 @@ class _PatchListState extends State<PatchList> {
                     var subscription = await scan();
                     subscription.onData((data) {
                       for (var element in data) {
-                        if (_eyePatchList.eyePatches[index].bleAddress ==
+                        if (eyePatchList.eyePatches[index].ble ==
                             element.device.id.id) {
                           isNearbyDevice = true;
                           debugPrint(
@@ -439,7 +517,7 @@ class _PatchListState extends State<PatchList> {
                       }
                     });
                     if (!isNearbyDevice) {
-                      Fluttertoast.showToast(msg: '주변에 있는 기기(패치)가 없습니다.');
+                      // Fluttertoast.showToast(msg: '주변에 있는 기기(패치)가 없습니다.');
                     }
                   },
                   child: const Text('연결하기')),
@@ -451,7 +529,7 @@ class _PatchListState extends State<PatchList> {
   }
 
   GestureDetector addEyePatch() {
-    var selectedBleAddress = '';
+    var selectedble = '';
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -490,6 +568,7 @@ class _PatchListState extends State<PatchList> {
                                 onPressed: () {
                                   setState(() {
                                     _scan1 = scan1();
+                                    selectedIndex = -1;
                                   });
                                 },
                                 child: const Text('스캔')),
@@ -516,11 +595,12 @@ class _PatchListState extends State<PatchList> {
                                                 return GestureDetector(
                                                   onTap: () async {
                                                     setState(() {
-                                                      selectedBleAddress =
+                                                      selectedble =
                                                           _resultList[index]
                                                               .device
                                                               .id
                                                               .toString();
+                                                      print(selectedble);
                                                       selectedIndex = index;
                                                     });
                                                   },
@@ -593,7 +673,7 @@ class _PatchListState extends State<PatchList> {
                       TextButton(
                           onPressed: () {
                             Navigator.pop(context);
-                            inputDialog(context, selectedBleAddress);
+                            inputDialog(context, selectedble);
                           },
                           child: const Text('다음'))
                     ],
@@ -615,26 +695,33 @@ class _PatchListState extends State<PatchList> {
     );
   }
 
-  Future<dynamic> inputDialog(BuildContext context, var bleAddress) {
+  Future<dynamic> inputDialog(BuildContext context, var ble) {
     TextEditingController nameField = TextEditingController();
-    TextEditingController timeField = TextEditingController();
-    TextEditingController birthField = TextEditingController();
+    TextEditingController timeField = TextEditingController(text: "1");
+    // TextEditingController birthField = TextEditingController();
 
-    var name = '';
-    var time = 00;
-    var birth = 000000;
+    String name = '';
+    int time = 00;
+    // var birth = 000000;
+    String side = 'right'; // which side? left/right
 
+    DateTime selectDate = DateTime.now();
+
+    double _currentSliderValue = 20;
+    EyePatchList eyePatchList = controller.eyePatchList;
     return showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-              title: const Text('아이패치 추가',
-                  style: TextStyle(
-                      color: Palette.primary1, fontWeight: FontWeight.bold)),
-              content: SingleChildScrollView(
-                child: ListBody(children: [
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            title: const Text('아이패치 추가',
+                style: TextStyle(
+                    color: Palette.primary1, fontWeight: FontWeight.bold)),
+            content: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) {
+                return SingleChildScrollView(
+                    child: ListBody(children: [
                   const Text('착용자 이름을 입력하세요.',
                       style: TextStyle(
                           color: Palette.black,
@@ -649,65 +736,248 @@ class _PatchListState extends State<PatchList> {
                           color: Palette.black,
                           fontSize: 16,
                           fontWeight: FontWeight.bold)),
-                  TextFormField(
-                    controller: birthField,
-                  ),
+                  // TextFormField(
+                  //   controller: birthField,
+                  // ),
+                  TextButton(
+                      onPressed: () {
+                        showCupertinoModalPopup(
+                            // shape: RoundedRectangleBorder(
+                            //     borderRadius: BorderRadius.circular(20)),
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Container(
+                                height: MediaQuery.of(context)
+                                        .copyWith()
+                                        .size
+                                        .height /
+                                    3,
+                                color: Colors.white,
+                                child: Column(
+                                  children: [
+                                    SizedBox(
+                                      height: MediaQuery.of(context)
+                                                  .copyWith()
+                                                  .size
+                                                  .height /
+                                              3 -
+                                          50,
+                                      child: SizedBox.expand(
+                                        child: CupertinoDatePicker(
+                                          onDateTimeChanged: (dateTime) {
+                                            setState(() {
+                                              selectDate = dateTime;
+                                            });
+                                          },
+                                          mode: CupertinoDatePickerMode.date,
+                                          minimumYear: 1980,
+                                          maximumYear: DateTime.now().year,
+                                          maximumDate: DateTime.now(),
+                                          initialDateTime: selectDate,
+                                        ),
+                                      ),
+                                    ),
+                                    CupertinoButton(
+                                      child: const Text("확인"),
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                    )
+                                  ],
+                                ),
+                              );
+                            }).whenComplete(() {
+                          print(DateFormat('yyyy년 MM월 dd일').format(selectDate));
+                        });
+                      },
+                      child: Text(
+                          // isSameDay(a, b)
+                          selectDate.difference(DateTime.now()).inDays == 0
+                              ? '선택'
+                              : DateFormat('yyyy년 MM월 dd일')
+                                  .format(selectDate))),
                   const SizedBox(height: 50),
-                  const Text('하루 착용 시간을 설정하세요.',
+                  const Text('하루 착용 시간을 입력하세요.',
+                      style: TextStyle(
+                          color: Palette.black,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 10),
+                  // Row(
+                  //   children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color: Palette.primary1),
+                        child: Center(
+                            child: TextButton(
+                          onPressed: () {
+                            if (timeField.text == "0") {
+                              return;
+                            }
+                            timeField.text =
+                                (int.parse(timeField.text) - 1).toString();
+                          },
+                          child: Text(
+                            "-",
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ),
+                        )),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 34,
+                        child: TextFormField(
+                          textAlign: TextAlign.center,
+                          // textAlignVertical: TextAlignVertical.center,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                          // initialValue: "1",
+                          controller: timeField,
+                          // ),
+                          // Text('시간'),
+                          // ],
+                        ),
+                      ),
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(4),
+                            color: Palette.primary1),
+                        child: Center(
+                            child: TextButton(
+                          onPressed: () {
+                            timeField.text =
+                                (int.parse(timeField.text) + 1).toString();
+                          },
+                          child: Text(
+                            "+",
+                            style: TextStyle(color: Colors.white, fontSize: 10),
+                          ),
+                        )),
+                      ),
+                      SizedBox(width: 10),
+                      Text('시간'),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+
+                  const Text('좌우 착용 비율을 설정하세요.',
                       style: TextStyle(
                           color: Palette.black,
                           fontSize: 16,
                           fontWeight: FontWeight.bold)),
 
-                  TextFormField(
-                    controller: timeField,
-                  ),
-                  const SizedBox(height: 50),
-
-                  const Text('왼쪽 / 오른쪽 눈  설정',
-                      style: TextStyle(
-                          color: Palette.black,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold)),
                   Row(
                     children: [
-                      TextButton(onPressed: () {}, child: Text('왼쪽')),
-                      TextButton(onPressed: () {}, child: Text('오른쪽')),
+                      Expanded(
+                          child: Center(
+                              child: Text(
+                                  _currentSliderValue.toInt().toString()))),
+                      Slider(
+                          value: _currentSliderValue,
+                          max: 100,
+                          divisions: 10,
+                          onChanged: ((value) {
+                            setState(() {
+                              _currentSliderValue = value;
+                            });
+                          })),
+                      Expanded(
+                          child: Center(
+                        child: Text(
+                            (100 - _currentSliderValue).toInt().toString()),
+                      )),
                     ],
                   )
-                  // TimePickerTheme(data: data, child: child)
-                ]),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    if (nameField.text.isNotEmpty &&
-                        timeField.text.isNotEmpty &&
-                        birthField.text.isNotEmpty) {
-                      name = nameField.text;
-                      time = int.parse(timeField.text);
-                      birth = int.parse(birthField.text);
-                      var newEyePatch = EyePatch(
-                          name: name,
-                          time: time,
-                          birth: birth,
-                          bleAddress: bleAddress,
-                          connected: false);
-                      setState(() {
-                        _eyePatchList.eyePatches.add(newEyePatch);
-                        storage.ready.then((_) {
-                          storage.setItem(
-                              'eyePatchList', _eyePatchList.toJSONEncodable());
-                        });
 
-                        // storage.ready
-                      });
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: const Text('확인'),
-                )
-              ]);
-        });
+                  // Row(
+                  //   children: [
+                  //     TextButton(
+                  //       onPressed: () {
+                  //         setState(() {
+                  //           side = 'left';
+                  //         });
+                  //       },
+                  //       style: ButtonStyle(
+                  //           backgroundColor: MaterialStateProperty.all(
+                  //               side == 'left'
+                  //                   ? Palette.background
+                  //                   : Palette.lightGrey)),
+                  //       child: const Text(
+                  //         '왼쪽',
+                  //         style: TextStyle(color: Palette.black),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(
+                  //       width: 12,
+                  //     ),
+                  //     TextButton(
+                  //       onPressed: () {
+                  //         setState(() {
+                  //           side = 'right';
+                  //         });
+                  //       },
+                  //       style: ButtonStyle(
+                  //           backgroundColor: MaterialStateProperty.all(
+                  //               side == 'right'
+                  //                   ? Palette.background
+                  //                   : Palette.lightGrey)),
+                  //       child: const Text(
+                  //         '오른쪽',
+                  //         style: TextStyle(color: Palette.black),
+                  //       ),
+                  //     )
+                  //   ],
+                  // )
+
+                  // TimePickerTheme(data: data, child: child)
+                ]));
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  if (nameField.text.isNotEmpty &&
+                      timeField.text.isNotEmpty &&
+                      // birthField.text.isNotEmpty
+                      selectDate.difference(DateTime.now()).inDays != 0) {
+                    name = nameField.text;
+                    time = int.parse(timeField.text);
+                    // birth = int.parse(birthField.text);
+                    var newEyePatch = EyePatch(
+                        name: name,
+                        time: time,
+                        birth: selectDate.millisecondsSinceEpoch,
+                        ble: ble,
+                        connected: false,
+                        leftRatio: _currentSliderValue);
+                    // setState(() {
+                    eyePatchList.eyePatches.add(newEyePatch);
+                    storage.ready.then((_) {
+                      storage.setItem(
+                          'eyePatchList', eyePatchList.toJSONEncodable());
+                      // });
+
+                      // storage.ready
+                    });
+                    setState(() {});
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text('확인'),
+              )
+            ]);
+      },
+    );
+    // });
   }
 }

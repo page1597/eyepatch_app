@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "1030503597813",
+    "project_id": "eyepatchapp",
+    "storage_bucket": "eyepatchapp.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030503597813:android:349ff831a1c91a4b58e7bc",
+        "android_client_info": {
+          "package_name": "com.eyepatch.monitor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1030503597813-e8d1dvrsr3ce5am4n3nmtbvtnvbub0ds.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.eyepatch.monitor",
+            "certificate_hash": "b5458fa40aa24f2cc918ed9d12fbcc3e79843ad4"
+          }
+        },
+        {
+          "client_id": "1030503597813-0na430hdvoisdbf64l2he5f0t7ctkkoq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAngR_UEMw1EqUzEmIDPYRc_SON2A5MkLo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1030503597813-0na430hdvoisdbf64l2he5f0t7ctkkoq.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1030503597813-4aum20pravshsrnst2v6qqosbt4p53e3.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.eyepatch.monitor"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

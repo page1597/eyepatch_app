@@ -22,7 +22,7 @@ class DBHelper {
 
   static void _createDb(Database db) {
     db.execute(
-      "CREATE TABLE EYEPATCH(id INTEGER PRIMARY KEY, device STRING, patchTemp DOUBLE, ambientTemp DOUBLE, patched STRING, rawData STRING, timeStamp INTEGER, dateTime STRING)",
+      "CREATE TABLE EYEPATCH(id INTEGER PRIMARY KEY, ble STRING, patchTemp DOUBLE, ambientTemp DOUBLE, patched STRING, rawData STRING, timeStamp INTEGER)",
     );
   }
 
@@ -41,19 +41,20 @@ class DBHelper {
 
     List<Ble> bleList = List.generate(maps.length, (index) {
       return Ble(
-          id: maps[index]['id'],
-          device: maps[index]['device'],
-          patchTemp: maps[index]['patchTemp'],
-          ambientTemp: maps[index]['ambientTemp'],
-          patched: maps[index]['patched'],
-          rawData: maps[index]['rawData'],
-          timeStamp: maps[index]['timeStamp'],
-          dateTime: maps[index]['dateTime']);
+        id: maps[index]['id'],
+        ble: maps[index]['ble'],
+        patchTemp: maps[index]['patchTemp'],
+        ambientTemp: maps[index]['ambientTemp'],
+        patched: maps[index]['patched'],
+        rawData: maps[index]['rawData'],
+        timeStamp: maps[index]['timeStamp'],
+        // dateTime: maps[index]['dateTime']
+      );
     });
 
     bleList.forEach((element) {
       print(
-          'patchTemp: ${element.patchTemp}, ambientTemp: ${element.ambientTemp}, rawData: ${element.timeStamp}, dateTime: ${element.dateTime}');
+          'patchTemp: ${element.patchTemp}, ambientTemp: ${element.ambientTemp}, rawData: ${element.rawData}, timeStamp: ${element.timeStamp}');
     });
     return bleList;
   }
@@ -76,21 +77,21 @@ class DBHelper {
   //   return maps[maps.length - 1]['temp'];
   // }
 
-  Future<void> deleteBle(String device) async {
+  Future<void> deleteBle(String ble) async {
     final db = await database;
     await db.delete(
       'EYEPATCH',
-      where: "device = ?",
-      whereArgs: [device],
+      where: "ble = ?",
+      whereArgs: [ble],
     );
   }
 
-  Future<dynamic> getBle(String device) async {
+  Future<dynamic> getBle(String ble) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = (await db.query(
       'EYEPATCH',
-      where: 'device = ?',
-      whereArgs: [device],
+      where: 'ble = ?',
+      whereArgs: [ble],
     ));
     return maps.isNotEmpty ? maps : null;
   }
@@ -133,7 +134,7 @@ class DBHelper {
       row.add("patched");
       row.add("rawData");
       row.add("timeStamp");
-      row.add('dateTime');
+      // row.add('dateTime');
       rows.add(row);
     } else {
       row.add('');
@@ -148,7 +149,7 @@ class DBHelper {
         row.add(result[i]["patched"]);
         row.add(result[i]["rawData"]);
         row.add(result[i]["timeStamp"]);
-        row.add(result[i]["dateTime"]);
+        // row.add(result[i]["dateTime"]);
 
         rows.add(row);
       }
