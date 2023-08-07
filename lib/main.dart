@@ -4,8 +4,10 @@ import 'dart:ui';
 import 'package:eyepatch_app/database/devices.dart';
 import 'package:eyepatch_app/page/patchList.dart';
 import 'package:eyepatch_app/style/palette.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/route_manager.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -16,8 +18,33 @@ import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await initializeService();
-  runApp(GetMaterialApp(home: const MyApp()));
+  await Firebase.initializeApp();
+  initializeNotification();
+
+  runApp(const GetMaterialApp(home: MyApp()));
+}
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("백그라운드 메시지 처리: ${message.notification!.body}");
+}
+
+void initializeNotification() async {
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(const AndroidNotificationChannel(
+          'high_importance_channel', 'high_importance_notification',
+          importance: Importance.max));
+
+  await flutterLocalNotificationsPlugin.initialize(const InitializationSettings(
+    android: AndroidInitializationSettings('mipmap/ic_launcher'),
+  ));
+
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true, badge: true, sound: true);
 }
 
 class FallbackCupertinoLocalisationsDelegate extends LocalizationsDelegate {
@@ -39,7 +66,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // LocalJsonLocalization.delegate.directories = ['lib/i18n'];
-    final Future<FirebaseApp> _initialization = Firebase.initializeApp();
+    // final Future<FirebaseApp> _initialization = Firebase.initializeApp();
+
     return MaterialApp(
       localizationsDelegates: [
         // delegate from flutter_localization
@@ -76,10 +104,42 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  String messageString = "";
   @override
   void initState() {
+    getDeviceToken();
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      RemoteNotification? notification = message.notification;
+
+      if (notification != null) {
+        PermissionStatus status = await Permission.notification.request();
+        if (status.isGranted) {
+          FlutterLocalNotificationsPlugin().show(
+              notification.hashCode,
+              notification.title,
+              notification.body,
+              const NotificationDetails(
+                  android: AndroidNotificationDetails(
+                      'high_importance_channel', 'high_importance_notification',
+                      importance: Importance.max)));
+        } else {
+          print("알람 권한 허용이 거부되었습니다.");
+        }
+      }
+      setState(() {
+        messageString = message.notification!.body!;
+        print("Foreground 메시지 수신: $messageString");
+      });
+    });
+
     super.initState();
     // getPermission();
+  }
+
+  getDeviceToken() async {
+    final token = await FirebaseMessaging.instance.getToken();
+    print("내 디바이스 토큰: $token");
   }
 
   @override

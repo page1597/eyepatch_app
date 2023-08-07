@@ -1,14 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
+import 'package:eyepatch_app/main.dart';
 import 'package:eyepatch_app/model.dart/eyePatch.dart';
 import 'package:eyepatch_app/model.dart/eyePatchList.dart';
 import 'package:eyepatch_app/page/patchDetail.dart';
-import 'package:eyepatch_app/patchController.dart';
+import 'package:eyepatch_app/controller/patchController.dart';
 import 'package:eyepatch_app/style/palette.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:eyepatch_app/database/devices.dart';
@@ -18,6 +19,8 @@ import 'package:intl/intl.dart';
 import 'package:loading_indicator/loading_indicator.dart';
 import 'package:get/get.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest_all.dart' as tz;
 
 class PatchList extends StatefulWidget {
   const PatchList({super.key});
@@ -42,10 +45,14 @@ class _PatchListState extends State<PatchList> {
   late Timer _timer;
   late Future<List<ScanResult>> _scan1;
 
-  final controller = Get.put(Controller());
+  final eyePatchController = Get.put(EyePatchController());
+
   @override
   void initState() {
     super.initState();
+    initializeNotification();
+    // Future.delayed(const Duration(seconds: 3), {})
+
     debugPrint('initstate');
     getPermission();
     initBle();
@@ -57,14 +64,14 @@ class _PatchListState extends State<PatchList> {
     // _resultList.clear()
 
     // WidgetsBinding.instance.addPostFrameCallback((_) {
+    // 화면상에 목록으로 띄우기 위해서
     storage.ready.then((_) {
-      print("ready~!!!!");
       print(storage.getItem('eyePatchList'));
       // storage.dispose();
       // storage.clear();
       List<dynamic> eyePatchList = storage.getItem('eyePatchList');
       print(storage.getItem('eyePatchList').length);
-      print(storage.getItem('eyePatchList')[0]['ble']);
+      print(storage.getItem('eyePatchList')[0]['time']);
       EyePatchList temp = EyePatchList();
       bool connected = false;
 
@@ -87,10 +94,11 @@ class _PatchListState extends State<PatchList> {
               time: item['time'],
               birth: item['birth'],
               connected: item['connected'],
-              leftRatio: item['leftRatio']),
+              leftRatio: item['leftRatio'],
+              alarm: item['alarm']),
         );
       }
-      Get.find<Controller>().updateList(temp);
+      Get.find<EyePatchController>().updateList(temp);
 
       // Get.find<Controller>().setState(() {
       //   _eyePatchList = temp;
@@ -177,6 +185,20 @@ class _PatchListState extends State<PatchList> {
         storageStatus.isGranted;
   }
 
+  makeDate(hour, min, sec) {
+    var now = tz.TZDateTime.now(tz.local);
+    print(now);
+    var when =
+        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, min, sec);
+    if (when.isBefore(now)) {
+      print("isbefore");
+      return when.add(const Duration(days: 1));
+    } else {
+      print("isAfter");
+      return when;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     print("빌드");
@@ -185,11 +207,12 @@ class _PatchListState extends State<PatchList> {
     bool connected = false;
     flutterBlue.connectedDevices.then((devices) => {
           devices.forEach((device) {
-            controller.eyePatchList.eyePatches.forEach((element) {
+            eyePatchController.eyePatchList.eyePatches.forEach((element) {
               print(element.ble);
               if (element.ble == device.id.toString()) {
                 // connected = true;
-                Get.find<Controller>()
+                Get.find<
+                        EyePatchController>() // 이거 그냥 eyePatchController로 바꿔도 되는거 아님..?
                     .updateElement(element.ble, "connected", true);
               }
             });
@@ -201,8 +224,54 @@ class _PatchListState extends State<PatchList> {
           // if (devices.contains(item))
           // devices.contains(item)
         });
-    return GetBuilder<Controller>(
+    return GetBuilder<EyePatchController>(
       builder: (controller) {
+        print('알림');
+
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          PermissionStatus status = await Permission.notification.request();
+
+          if (status.isGranted) {
+            tz.initializeTimeZones();
+            tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+
+            var androidDetails = const AndroidNotificationDetails(
+              'alarm',
+              'alarm',
+              priority: Priority.high,
+              importance: Importance.max,
+              color: Color.fromARGB(255, 255, 0, 0),
+            );
+
+            // 알림 id, 제목, 내용 맘대로 채우기
+            // _flutterLocalNotificationsPlugin.show(1, '제목1', '내용1',
+            //     NotificationDetails(android: androidDetails));
+            for (var patch in controller.eyePatchList.eyePatches) {
+              // 하나의 패치마다
+              print(patch.ble);
+              print(patch.alarm);
+              for (var alarm in patch.alarm!) {
+                // 설정된 여러 알림
+                FlutterLocalNotificationsPlugin().zonedSchedule(
+                    2123,
+                    alarm / 60 <= 10
+                        ? '${patch.ble}패치의 오늘 착용 시간은 n시간 입니다.'
+                        : '${patch.ble} - 오늘 하루 n1시간 중 n2시간을 착용했어요.',
+                    '${(alarm / 60).floor()}시 ${alarm % 60}분 알림입니다.',
+                    // tz.TZDateTime.now(tz.local).add(Duration(seconds: 5)),
+
+                    // 아이폰도 추가하기
+                    makeDate((alarm / 60).floor(), alarm % 60, 0),
+                    NotificationDetails(android: androidDetails),
+                    uiLocalNotificationDateInterpretation:
+                        UILocalNotificationDateInterpretation.absoluteTime,
+                    matchDateTimeComponents: DateTimeComponents.time //주기적으로 알람
+                    );
+              }
+            }
+          } else {}
+        });
+
         return Column(
           children: [
             Container(
@@ -224,19 +293,69 @@ class _PatchListState extends State<PatchList> {
                 },
                 child: const Text('eyePatchList')),
             // TextButton(
-            //     onPressed: () {
-            //       scan();
+            //     onPressed: () async {
+            //       // scan();
+            //       // eyePatchController.printPatchList();
+            //       // alarmController.alarmTime.forEach((element) {
+            //       //   print(element); // 이게 이제 맥주소+이름 이렇게 바뀌어야 함.
+            //       // });
+            //       print('알림');
+            //       PermissionStatus status =
+            //           await Permission.notification.request();
+
+            //       if (status.isGranted) {
+            //         tz.initializeTimeZones();
+            //         tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+
+            //         var androidDetails = const AndroidNotificationDetails(
+            //           'alarm',
+            //           'alarm',
+            //           priority: Priority.high,
+            //           importance: Importance.max,
+            //           color: Color.fromARGB(255, 255, 0, 0),
+            //         );
+
+            //         // 알림 id, 제목, 내용 맘대로 채우기
+            //         // _flutterLocalNotificationsPlugin.show(1, '제목1', '내용1',
+            //         //     NotificationDetails(android: androidDetails));
+            //         for (var patch in controller.eyePatchList.eyePatches) {
+            //           // 하나의 패치마다
+            //           print(patch.ble);
+            //           print(patch.alarm);
+            //           for (var alarm in patch.alarm!) {
+            //             // 설정된 여러 알림
+            //             FlutterLocalNotificationsPlugin().zonedSchedule(
+            //                 2123,
+            //                 alarm / 60 <= 10
+            //                     ? '${patch.ble}패치의 오늘 착용 시간은 n시간 입니다.'
+            //                     : '${patch.ble} - 오늘 하루 n1시간 중 n2시간을 착용했어요.',
+            //                 '${(alarm / 60).floor()}시 ${alarm % 60}분 알림입니다.',
+            //                 // tz.TZDateTime.now(tz.local).add(Duration(seconds: 5)),
+
+            //                 makeDate((alarm / 60).floor(), 18, 0),
+            //                 NotificationDetails(android: androidDetails),
+            //                 uiLocalNotificationDateInterpretation:
+            //                     UILocalNotificationDateInterpretation
+            //                         .absoluteTime,
+            //                 matchDateTimeComponents:
+            //                     DateTimeComponents.time //주기적으로 알람
+            //                 );
+            //           }
+            //         }
+            //       } else {}
             //     },
-            //     child: const Text('scan')),
+            //     child: const Text('알림')),
             Flexible(
               child: Container(
                 color: Palette.primary3,
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: GridView.builder(
-                    itemCount: controller.eyePatchList.eyePatches.length + 1,
+                    itemCount:
+                        eyePatchController.eyePatchList.eyePatches.length + 1,
                     itemBuilder: ((context, index) {
-                      return index == controller.eyePatchList.eyePatches.length
+                      return index ==
+                              eyePatchController.eyePatchList.eyePatches.length
                           ? addEyePatch()
                           : eyePatch(index);
                     }),
@@ -329,7 +448,7 @@ class _PatchListState extends State<PatchList> {
   // 2. 바로 연결
 
   connect(BluetoothDevice device) async {
-    EyePatchList eyePatchList = controller.eyePatchList;
+    EyePatchList eyePatchList = eyePatchController.eyePatchList;
     Future<bool>? returnValue;
     // bool isNearbyDevice = false;
 
@@ -352,7 +471,8 @@ class _PatchListState extends State<PatchList> {
             time: patch.time,
             birth: patch.birth,
             connected: false,
-            leftRatio: patch.leftRatio); // 전부 connected: false
+            leftRatio: patch.leftRatio,
+            alarm: patch.alarm); // 전부 connected: false
       });
     }
     storage.ready.then(
@@ -378,8 +498,9 @@ class _PatchListState extends State<PatchList> {
                       time: eyePatchList.eyePatches[connectDeviceIndex].time,
                       birth: eyePatchList.eyePatches[connectDeviceIndex].birth,
                       connected: true,
-                      leftRatio: eyePatchList
-                          .eyePatches[connectDeviceIndex].leftRatio);
+                      leftRatio:
+                          eyePatchList.eyePatches[connectDeviceIndex].leftRatio,
+                      alarm: eyePatchList.eyePatches[connectDeviceIndex].alarm);
                 }),
                 storage.ready.then((_) => storage.setItem(
                     'eyePatchList', eyePatchList.toJSONEncodable())),
@@ -394,7 +515,7 @@ class _PatchListState extends State<PatchList> {
   }
 
   disconnect(BluetoothDevice device) {
-    EyePatchList eyePatchList = controller.eyePatchList;
+    EyePatchList eyePatchList = eyePatchController.eyePatchList;
     device.disconnect().then((value) {
       for (var patch in eyePatchList.eyePatches) {
         if (patch.ble == device.id.id) {
@@ -406,7 +527,8 @@ class _PatchListState extends State<PatchList> {
                 time: patch.time,
                 birth: patch.birth,
                 connected: false,
-                leftRatio: patch.leftRatio);
+                leftRatio: patch.leftRatio,
+                alarm: patch.alarm);
           });
         }
       }
@@ -419,7 +541,7 @@ class _PatchListState extends State<PatchList> {
   }
 
   GestureDetector eyePatch(var index) {
-    EyePatchList eyePatchList = controller.eyePatchList;
+    EyePatchList eyePatchList = eyePatchController.eyePatchList;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -708,7 +830,7 @@ class _PatchListState extends State<PatchList> {
     DateTime selectDate = DateTime.now();
 
     double _currentSliderValue = 20;
-    EyePatchList eyePatchList = controller.eyePatchList;
+    EyePatchList eyePatchList = eyePatchController.eyePatchList;
     return showDialog(
       context: context,
       builder: (BuildContext context) {

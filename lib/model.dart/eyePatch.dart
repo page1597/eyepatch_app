@@ -11,7 +11,7 @@ class EyePatch {
   final int birth; //timestamp
   final bool connected;
   final double leftRatio;
-  // final List<int>? alarm; // 알림
+  final List<dynamic>? alarm; // 알림
 
   EyePatch({
     // required this.id,
@@ -21,7 +21,7 @@ class EyePatch {
     required this.birth,
     required this.connected,
     required this.leftRatio,
-    // this.alarm,
+    this.alarm,
   });
 
   // EyePatch.fromJson(Map<String, dynamic> json)
@@ -48,6 +48,7 @@ class EyePatch {
     eyePatch['birth'] = birth;
     eyePatch['connected'] = connected;
     eyePatch['leftRatio'] = leftRatio;
+    eyePatch['alarm'] = alarm;
 
     return eyePatch;
   }
