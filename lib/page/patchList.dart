@@ -58,7 +58,7 @@ class _PatchListState extends State<PatchList> {
   @override
   void initState() {
     super.initState();
-    initializeNotification();
+    // initializeNotification();
     // Future.delayed(const Duration(seconds: 3), {})
 
     debugPrint('initstate');
@@ -195,6 +195,7 @@ class _PatchListState extends State<PatchList> {
   }
 
   makeDate(hour, min, sec) {
+    print('make date');
     var now = tz.TZDateTime.now(tz.local);
     print(now);
     var when =
@@ -236,22 +237,34 @@ class _PatchListState extends State<PatchList> {
     return GetBuilder<EyePatchController>(
       builder: (controller) {
         debugPrint('알림');
-
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           PermissionStatus status = await Permission.notification.request();
-
           if (status.isGranted) {
-            tz.initializeTimeZones();
+            print("isGranted");
             tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
 
             var androidDetails = const AndroidNotificationDetails(
-              'alarm',
-              'alarm',
-              priority: Priority.high,
-              importance: Importance.max,
-              color: Color.fromARGB(255, 255, 0, 0),
-            );
+                'alarm', 'alarm',
+                priority: Priority.max,
+                importance: Importance.max,
+                color: Color.fromARGB(255, 255, 0, 0),
+                showWhen: false);
 
+            var iosDetails = const DarwinNotificationDetails(badgeNumber: 1);
+            var details =
+                NotificationDetails(android: androidDetails, iOS: iosDetails);
+            // FlutterLocalNotificationsPlugin().zonedSchedule(
+            //     2123,
+            //     'test',
+            //     '알림입니다.',
+            //     makeDate(2, 43, 0), //5초 뒤 알람
+
+            //     // 아이폰도 추가하기
+            //     details,
+            //     uiLocalNotificationDateInterpretation:
+            //         UILocalNotificationDateInterpretation.absoluteTime,
+            //     matchDateTimeComponents: DateTimeComponents.time //주기적으로 알람
+            //     );
             // 알림 id, 제목, 내용 맘대로 채우기
             // _flutterLocalNotificationsPlugin.show(1, '제목1', '내용1',
             //     NotificationDetails(android: androidDetails));
@@ -268,11 +281,11 @@ class _PatchListState extends State<PatchList> {
                           ? '${patch.ble}패치의 오늘 착용 시간은 n시간 입니다.'
                           : '${patch.ble} - 오늘 하루 n1시간 중 n2시간을 착용했어요.',
                       '${(alarm / 60).floor()}시 ${alarm % 60}분 알림입니다.',
-                      // tz.TZDateTime.now(tz.local).add(Duration(seconds: 5)),
 
                       // 아이폰도 추가하기
+                      // makeDate((alarm / 60).floor(), alarm % 60, 0),
                       makeDate((alarm / 60).floor(), alarm % 60, 0),
-                      NotificationDetails(android: androidDetails),
+                      details,
                       uiLocalNotificationDateInterpretation:
                           UILocalNotificationDateInterpretation.absoluteTime,
                       matchDateTimeComponents:
@@ -298,7 +311,7 @@ class _PatchListState extends State<PatchList> {
               ),
             ),
             TextButton(
-                onPressed: () {
+                onPressed: () async {
                   // dbHelper.insertRecord(Ble(
                   //     timeStamp: 00,
                   //     ble: 'testBle',
@@ -306,6 +319,7 @@ class _PatchListState extends State<PatchList> {
                   //     rawData: '테스트'));
                   // dbHelper.getAllBle();
                   print(storage.getItem('eyePatchList'));
+
                   // flutterBlue.connectedDevices
                   //     .then((value) => {print(value)}); // 현재 연결되어 있는 기기
                 },

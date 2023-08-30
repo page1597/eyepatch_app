@@ -36,6 +36,9 @@
 	<string>Need Location permission</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Need Location permission</string>
+	<key>PermissionGroupNotification</key>
+	<string>Need Notification permission</string>
+	
 	<key>NSLocationUsageDescription</key>
 	<string>Older devices need location.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -46,6 +49,8 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>UIStatusBarStyle</key>
+	<string></string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

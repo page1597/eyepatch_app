@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:eyepatch_app/database/devices.dart';
 import 'package:eyepatch_app/page/patchList.dart';
 import 'package:eyepatch_app/style/palette.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -13,25 +13,40 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'database/dbHelper.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:firebase_core/firebase_core.dart';
+// import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  initializeNotification();
+  // await Firebase.initializeApp();
+  _initializeNotification();
+  tz.initializeTimeZones();
 
   runApp(const GetMaterialApp(home: MyApp()));
 }
 
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print("백그라운드 메시지 처리: ${message.notification!.body}");
-}
+// Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+//   print("백그라운드 메시지 처리: ${message.notification!.body}");
+// }
 
-void initializeNotification() async {
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+_initializeNotification() async {
+  // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  const androidInitSettings =
+      AndroidInitializationSettings('mipmap/ic_launcher');
+  const iosInitSettings = DarwinInitializationSettings(
+    requestSoundPermission: false,
+    requestBadgePermission: false,
+    requestAlertPermission: false,
+  );
+  const initSettings = InitializationSettings(
+    android: androidInitSettings,
+    iOS: iosInitSettings,
+  );
+
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
@@ -39,12 +54,15 @@ void initializeNotification() async {
           'high_importance_channel', 'high_importance_notification',
           importance: Importance.max));
 
-  await flutterLocalNotificationsPlugin.initialize(const InitializationSettings(
-    android: AndroidInitializationSettings('mipmap/ic_launcher'),
-  ));
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin>()
+      ?.requestPermissions(alert: true, badge: true, sound: true);
 
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true, badge: true, sound: true);
+  await flutterLocalNotificationsPlugin.initialize(initSettings);
+
+  // await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+  //     alert: true, badge: true, sound: true);
 }
 
 class FallbackCupertinoLocalisationsDelegate extends LocalizationsDelegate {
@@ -69,21 +87,21 @@ class MyApp extends StatelessWidget {
     // final Future<FirebaseApp> _initialization = Firebase.initializeApp();
 
     return MaterialApp(
-      localizationsDelegates: [
+      localizationsDelegates: const [
         // delegate from flutter_localization
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
         DefaultCupertinoLocalizations.delegate,
-        const FallbackCupertinoLocalisationsDelegate(),
+        FallbackCupertinoLocalisationsDelegate(),
       ],
       // localizationsDelegates: [
       //   GlobalMaterialLocalizations.delegate,
       //   GlobalWidgetsLocalizations.delegate,
       //   // if it's a RTL language
       // ],
-      supportedLocales: [
-        const Locale('ko', 'KR'),
+      supportedLocales: const [
+        Locale('ko', 'KR'),
         // include country code too
       ],
       debugShowCheckedModeBanner: false,
@@ -107,40 +125,40 @@ class _MyHomePageState extends State<MyHomePage> {
   String messageString = "";
   @override
   void initState() {
-    getDeviceToken();
+    // getDeviceToken();
 
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      RemoteNotification? notification = message.notification;
+    // FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+    //   RemoteNotification? notification = message.notification;
 
-      if (notification != null) {
-        PermissionStatus status = await Permission.notification.request();
-        if (status.isGranted) {
-          FlutterLocalNotificationsPlugin().show(
-              notification.hashCode,
-              notification.title,
-              notification.body,
-              const NotificationDetails(
-                  android: AndroidNotificationDetails(
-                      'high_importance_channel', 'high_importance_notification',
-                      importance: Importance.max)));
-        } else {
-          print("알람 권한 허용이 거부되었습니다.");
-        }
-      }
-      setState(() {
-        messageString = message.notification!.body!;
-        print("Foreground 메시지 수신: $messageString");
-      });
-    });
+    //   if (notification != null) {
+    //     PermissionStatus status = await Permission.notification.request();
+    //     if (status.isGranted) {
+    //       FlutterLocalNotificationsPlugin().show(
+    //           notification.hashCode,
+    //           notification.title,
+    //           notification.body,
+    //           const NotificationDetails(
+    //               android: AndroidNotificationDetails(
+    //                   'high_importance_channel', 'high_importance_notification',
+    //                   importance: Importance.max)));
+    //     } else {
+    //       print("알람 권한 허용이 거부되었습니다.");
+    //     }
+    //   }
+    //   setState(() {
+    //     messageString = message.notification!.body!;
+    //     print("Foreground 메시지 수신: $messageString");
+    //   });
+    // });
 
     super.initState();
     // getPermission();
   }
 
-  getDeviceToken() async {
-    final token = await FirebaseMessaging.instance.getToken();
-    print("내 디바이스 토큰: $token");
-  }
+  // getDeviceToken() async {
+  //   final token = await FirebaseMessaging.instance.getToken();
+  //   print("내 디바이스 토큰: $token");
+  // }
 
   @override
   Widget build(BuildContext context) {

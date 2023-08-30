@@ -1,6 +1,6 @@
 import 'dart:collection';
 // import { db } from 'config/firebase';
-import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyepatch_app/database/dbHelper.dart';
 import 'package:eyepatch_app/model/ble.dart';
 import 'package:eyepatch_app/model/eyePatch.dart';
@@ -74,7 +74,7 @@ class _PatchDetailState extends State<PatchDetail> {
 
   // durationField
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final ValueNotifier<List<Event>> _selectedEvents;
 
   List<Event> _getEventsForDay(DateTime day) {
@@ -133,80 +133,80 @@ class _PatchDetailState extends State<PatchDetail> {
     _selectedDay = _focusedDay;
     _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay));
 
-    const source = Source.serverAndCache;
+    // const source = Source.serverAndCache;
     DateTime recordedDay = DateTime.now();
     // print("지금 타임스탬프: ${recordedDay.millisecondsSinceEpoch}");
-    _firestore
-        .collection(widget.ble) // 해당 기기 이름+착용자 생년월일로 바꾸기
-        .get(const GetOptions(source: source))
-        .then((querySnapshot) {
-      for (var docSnapshot in querySnapshot.docs) {
-        // bool isSameDay = false;
+    // _firestore
+    //   .collection(widget.ble) // 해당 기기 이름+착용자 생년월일로 바꾸기
+    //   .get(const GetOptions(source: source))
+    //   .then((querySnapshot) {
+    // for (var docSnapshot in querySnapshot.docs) {
+    //   // bool isSameDay = false;
 
-        LinkedHashMap<DateTime?, List<Event>> temp =
-            LinkedHashMap(equals: isSameDay);
-        // 같은 날짜끼리 같은 eventEntries 리스트에 담는다.
-        recordedDay =
-            DateTime.fromMillisecondsSinceEpoch(int.parse(docSnapshot.id));
+    //   LinkedHashMap<DateTime?, List<Event>> temp =
+    //       LinkedHashMap(equals: isSameDay);
+    //   // 같은 날짜끼리 같은 eventEntries 리스트에 담는다.
+    //   recordedDay =
+    //       DateTime.fromMillisecondsSinceEpoch(int.parse(docSnapshot.id));
 
-        if (events.isEmpty) {
-          // 처음에만 여기로 들어감.
-          events.addAll({
-            DateTime.utc(recordedDay.year, recordedDay.month, recordedDay.day):
-                [
-              Event(recordedDay, docSnapshot["patched"] == 1 ? true : false)
-            ] // 하나 만들면 루프 또 돌때 위쪽 if 문으로 들어가겠지..?
-          });
-        } else {
-          bool isExistDay = false;
-          events.forEach((key, value) {
-            if (DateUtils.isSameDay(key, recordedDay)) {
-              // 같은날
-              isExistDay = true;
-            }
-          });
+    //   if (events.isEmpty) {
+    //     // 처음에만 여기로 들어감.
+    //     events.addAll({
+    //       DateTime.utc(recordedDay.year, recordedDay.month, recordedDay.day):
+    //           [
+    //         Event(recordedDay, docSnapshot["patched"] == 1 ? true : false)
+    //       ] // 하나 만들면 루프 또 돌때 위쪽 if 문으로 들어가겠지..?
+    //     });
+    //   } else {
+    //     bool isExistDay = false;
+    //     events.forEach((key, value) {
+    //       if (DateUtils.isSameDay(key, recordedDay)) {
+    //         // 같은날
+    //         isExistDay = true;
+    //       }
+    //     });
 
-          if (isExistDay) {
-            events[DateTime.utc(
-                    recordedDay.year, recordedDay.month, recordedDay.day)]
-                ?.add(Event(
-                    recordedDay, docSnapshot["patched"] == 1 ? true : false));
-          } else {
-            temp.addAll({
-              DateTime.utc(
-                  recordedDay.year, recordedDay.month, recordedDay.day): [
-                Event(recordedDay, docSnapshot["patched"] == 1 ? true : false)
-              ]
-            });
-          }
-          events.addEntries(temp.entries);
-        }
-      }
+    //     if (isExistDay) {
+    //       events[DateTime.utc(
+    //               recordedDay.year, recordedDay.month, recordedDay.day)]
+    //           ?.add(Event(
+    //               recordedDay, docSnapshot["patched"] == 1 ? true : false));
+    //     } else {
+    //       temp.addAll({
+    //         DateTime.utc(
+    //             recordedDay.year, recordedDay.month, recordedDay.day): [
+    //           Event(recordedDay, docSnapshot["patched"] == 1 ? true : false)
+    //         ]
+    //       });
+    //     }
+    //     events.addEntries(temp.entries);
+    //   }
+    // }
 
-      events.forEach((key, value) {
-        print("[$key]");
-        value.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-      });
+    // events.forEach((key, value) {
+    //   print("[$key]");
+    //   value.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    // });
 
-      events.forEach((key, value) {
-        print("[$key]");
-        for (var element in value) {
-          print("${element.dateTime} - ${element.patched}");
-        }
-      });
+    // events.forEach((key, value) {
+    //   print("[$key]");
+    //   for (var element in value) {
+    //     print("${element.dateTime} - ${element.patched}");
+    //   }
+    // });
 
-      // eventEntries.sort((a, b) => a.dateTime.compareTo(b.dateTime));
-      // print(eventEntries);
-      // print(event)
-      // events.addAll({
-      //   DateTime.utc(recordedDay.year, recordedDay.month, recordedDay.day):
-      //       eventEntries
-      // });
+    // eventEntries.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    // print(eventEntries);
+    // print(event)
+    // events.addAll({
+    //   DateTime.utc(recordedDay.year, recordedDay.month, recordedDay.day):
+    //       eventEntries
+    // });
 
-      // events.forEach((key, value) {
-      //   print("$key : ${value}");
-      // });
-    });
+    // events.forEach((key, value) {
+    //   print("$key : ${value}");
+    // });
+    // });
   }
 
   @override
@@ -1315,195 +1315,212 @@ class _PatchDetailState extends State<PatchDetail> {
                         style: TextStyle(
                             color: Palette.primary1,
                             fontWeight: FontWeight.bold)),
-                    content: SingleChildScrollView(
-                      child: ListBody(
-                        children: [
-                          const Text('알람을 받을 시간을 설정하세요.',
-                              style: TextStyle(
-                                  color: Palette.black,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 20),
-                          Expanded(
-                              child: ListView.builder(
-                                  itemCount: eyePatch.alarm == null
-                                      ? 0
-                                      : eyePatch.alarm!.length,
-                                  shrinkWrap: true,
-                                  itemBuilder: ((context, index) {
-                                    if (eyePatch.alarm?[index] != null) {
-                                      return Text(
-                                          '${(eyePatch.alarm![index] / 60).floor()}시 ${(eyePatch.alarm![index] % 60)}분',
-                                          style: const TextStyle(
-                                              color: Palette.primary1,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18));
-                                    }
-                                  }))),
-                          Row(
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SingleChildScrollView(
+                          child: ListBody(
                             children: [
-                              TextButton(
-                                  onPressed: () {
-                                    showCupertinoModalPopup(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return Container(
-                                              color: Colors.white,
-                                              height: MediaQuery.of(context)
-                                                      .copyWith()
-                                                      .size
-                                                      .height /
-                                                  3,
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.all(0),
-                                                child: Column(
-                                                  children: [
-                                                    Row(
-                                                        crossAxisAlignment:
-                                                            CrossAxisAlignment
-                                                                .center,
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .center,
-                                                        children: [
-                                                          Expanded(
-                                                            child:
-                                                                CupertinoPicker(
-                                                              squeeze: 1,
-                                                              scrollController:
-                                                                  FixedExtentScrollController(
-                                                                      initialItem:
-                                                                          _selectedAlarmHour),
-                                                              itemExtent: 55.0,
-                                                              backgroundColor:
-                                                                  Colors.white,
-                                                              onSelectedItemChanged:
-                                                                  (value) {
-                                                                setState(() {
-                                                                  _selectedAlarmHour =
-                                                                      value;
-                                                                });
-                                                                print(
-                                                                    _selectedAlarmHour);
-                                                              },
-                                                              children:
-                                                                  List.generate(
-                                                                24,
-                                                                (index) =>
-                                                                    Center(
-                                                                  child: Text(
-                                                                    '$index',
-                                                                    style: const TextStyle(
-                                                                        fontSize:
-                                                                            24),
+                              const Text('알람을 받을 시간을 설정하세요.',
+                                  style: TextStyle(
+                                      color: Palette.black,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: 100,
+                                height: 100,
+                                child: ListView.builder(
+                                    shrinkWrap: true,
+                                    itemCount: eyePatch.alarm == null
+                                        ? 0
+                                        : eyePatch.alarm!.length,
+                                    itemBuilder: ((context, index) {
+                                      if (eyePatch.alarm?[index] != null) {
+                                        return Text(
+                                            '${(eyePatch.alarm![index] / 60).floor()}시 ${(eyePatch.alarm![index] % 60)}분',
+                                            style: const TextStyle(
+                                                color: Palette.primary1,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18));
+                                      }
+                                    })),
+                              ),
+                              Row(
+                                children: [
+                                  TextButton(
+                                      onPressed: () {
+                                        showCupertinoModalPopup(
+                                            context: context,
+                                            builder: (BuildContext context) {
+                                              return Container(
+                                                  color: Colors.white,
+                                                  height: MediaQuery.of(context)
+                                                          .copyWith()
+                                                          .size
+                                                          .height /
+                                                      3,
+                                                  child: Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(0),
+                                                    child: Column(
+                                                      children: [
+                                                        Row(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .center,
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Expanded(
+                                                                child:
+                                                                    CupertinoPicker(
+                                                                  squeeze: 1,
+                                                                  scrollController:
+                                                                      FixedExtentScrollController(
+                                                                          initialItem:
+                                                                              _selectedAlarmHour),
+                                                                  itemExtent:
+                                                                      55.0,
+                                                                  backgroundColor:
+                                                                      Colors
+                                                                          .white,
+                                                                  onSelectedItemChanged:
+                                                                      (value) {
+                                                                    setState(
+                                                                        () {
+                                                                      _selectedAlarmHour =
+                                                                          value;
+                                                                    });
+                                                                    print(
+                                                                        _selectedAlarmHour);
+                                                                  },
+                                                                  children: List
+                                                                      .generate(
+                                                                    24,
+                                                                    (index) =>
+                                                                        Center(
+                                                                      child:
+                                                                          Text(
+                                                                        '$index',
+                                                                        style: const TextStyle(
+                                                                            fontSize:
+                                                                                24),
+                                                                      ),
+                                                                    ),
                                                                   ),
                                                                 ),
                                                               ),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                            child: Text(
-                                                              '시',
-                                                              style: TextStyle(
-                                                                  fontSize: 24,
-                                                                  color: Palette
-                                                                      .black),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 24,
-                                                          ),
-                                                          Expanded(
-                                                            child:
-                                                                CupertinoPicker(
-                                                              squeeze: 1,
-                                                              scrollController:
-                                                                  FixedExtentScrollController(
-                                                                      initialItem:
-                                                                          _selectedAlarmMinute),
-                                                              itemExtent: 55,
-                                                              backgroundColor:
-                                                                  Colors.white,
-                                                              onSelectedItemChanged:
-                                                                  (index) {
-                                                                setState(() {
-                                                                  _selectedAlarmMinute =
-                                                                      _minutes[
-                                                                          index];
-                                                                });
-                                                                print(
-                                                                    _selectedAlarmMinute);
-                                                              },
-                                                              children:
-                                                                  List.generate(
-                                                                      _minutes
-                                                                          .length,
-                                                                      (index) =>
-                                                                          Center(
-                                                                            child:
-                                                                                Text(
-                                                                              '${_minutes[index]}',
-                                                                              style: const TextStyle(fontSize: 24),
-                                                                            ),
-                                                                          )),
-                                                            ),
-                                                          ),
-                                                          const SizedBox(
-                                                            child: Text(
-                                                              '분',
-                                                              style: TextStyle(
-                                                                  fontSize: 24,
-                                                                  color: Palette
-                                                                      .black),
-                                                            ),
-                                                          ),
-                                                        ]),
-                                                  ],
-                                                ),
-                                              ));
-                                        });
-                                  },
-                                  child: Text(
-                                    "$_selectedAlarmHour시 $_selectedAlarmMinute분",
-                                    style: const TextStyle(fontSize: 30),
-                                  )),
-                              Container(
-                                color: Colors.black12,
-                                height: 50,
-                                child: TextButton(
-                                    onPressed: () {
-                                      // DateTime
-                                      DateTime now = DateTime.now();
-                                      // Timestamp alarmTime = Timestamp.fromDate(
-                                      //     DateTime(
-                                      //         now.year,
-                                      //         now.month,
-                                      //         now.day,
-                                      //         _selectedAlarmHour,
-                                      //         _selectedAlarmMinute,
-                                      //         0,
-                                      //         0,
-                                      //         0));
-                                      int alarmTime =
-                                          (_selectedAlarmHour * 60) +
-                                              _selectedAlarmMinute;
-                                      print(alarmTime);
-                                      List<dynamic> eyePatchAlarmList =
-                                          eyePatch.alarm ?? [];
-                                      controller.updateElement(
-                                          widget.ble,
-                                          "alarm",
-                                          [...eyePatchAlarmList, alarmTime]);
+                                                              const SizedBox(
+                                                                child: Text(
+                                                                  '시',
+                                                                  style: TextStyle(
+                                                                      fontSize:
+                                                                          24,
+                                                                      color: Palette
+                                                                          .black),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                width: 24,
+                                                              ),
+                                                              Expanded(
+                                                                child:
+                                                                    CupertinoPicker(
+                                                                  squeeze: 1,
+                                                                  scrollController:
+                                                                      FixedExtentScrollController(
+                                                                          initialItem:
+                                                                              _selectedAlarmMinute),
+                                                                  itemExtent:
+                                                                      55,
+                                                                  backgroundColor:
+                                                                      Colors
+                                                                          .white,
+                                                                  onSelectedItemChanged:
+                                                                      (index) {
+                                                                    setState(
+                                                                        () {
+                                                                      _selectedAlarmMinute =
+                                                                          _minutes[
+                                                                              index];
+                                                                    });
+                                                                    print(
+                                                                        _selectedAlarmMinute);
+                                                                  },
+                                                                  children: List
+                                                                      .generate(
+                                                                          _minutes
+                                                                              .length,
+                                                                          (index) =>
+                                                                              Center(
+                                                                                child: Text(
+                                                                                  '${_minutes[index]}',
+                                                                                  style: const TextStyle(fontSize: 24),
+                                                                                ),
+                                                                              )),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(
+                                                                child: Text(
+                                                                  '분',
+                                                                  style: TextStyle(
+                                                                      fontSize:
+                                                                          24,
+                                                                      color: Palette
+                                                                          .black),
+                                                                ),
+                                                              ),
+                                                            ]),
+                                                      ],
+                                                    ),
+                                                  ));
+                                            });
+                                      },
+                                      child: Text(
+                                        "$_selectedAlarmHour시 $_selectedAlarmMinute분",
+                                        style: const TextStyle(fontSize: 30),
+                                      )),
+                                  Container(
+                                    color: Colors.black12,
+                                    height: 50,
+                                    child: TextButton(
+                                        onPressed: () {
+                                          // DateTime
+                                          DateTime now = DateTime.now();
+                                          // Timestamp alarmTime = Timestamp.fromDate(
+                                          //     DateTime(
+                                          //         now.year,
+                                          //         now.month,
+                                          //         now.day,
+                                          //         _selectedAlarmHour,
+                                          //         _selectedAlarmMinute,
+                                          //         0,
+                                          //         0,
+                                          //         0));
+                                          int alarmTime =
+                                              (_selectedAlarmHour * 60) +
+                                                  _selectedAlarmMinute;
+                                          print(alarmTime);
+                                          List<dynamic> eyePatchAlarmList =
+                                              eyePatch.alarm ?? [];
+                                          controller.updateElement(
+                                              widget.ble, "alarm", [
+                                            ...eyePatchAlarmList,
+                                            alarmTime
+                                          ]);
 
-                                      setState(() {});
-                                    },
-                                    child: const Text('추가')),
-                              )
+                                          setState(() {});
+                                        },
+                                        child: const Text('추가')),
+                                  )
+                                ],
+                              ),
                             ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     actions: [
                       TextButton(
