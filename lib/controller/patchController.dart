@@ -1,5 +1,5 @@
-import 'package:eyepatch_app/model.dart/eyePatch.dart';
-import 'package:eyepatch_app/model.dart/eyePatchList.dart';
+import 'package:eyepatch_app/model/eyePatch.dart';
+import 'package:eyepatch_app/model/eyePatchList.dart';
 import 'package:get/get.dart';
 import 'package:localstorage/localstorage.dart';
 
@@ -30,17 +30,16 @@ class EyePatchController extends GetxController {
   }
 
   printPatchList() {
-    print("??");
     // eyepatchlist를 프린트 하면 안되나? 될듯.
     storage.ready.then((_) {
       // print(storage.getItem('eyePatchList'));
       List<dynamic> eyePatchList = storage.getItem('eyePatchList');
       for (var item in eyePatchList) {
         print(item['ble']);
+        print(item['pid']);
+        print(item['phone']);
         print(item['name']);
-        print(item['time']);
-        print(item['birth']);
-        print(item['connected']);
+        print(item['prescribedDuration']);
         print(item['leftRatio']);
         print(item['alarm']);
       }
@@ -50,13 +49,14 @@ class EyePatchController extends GetxController {
   EyePatch getPatch(String pid) {
     // pid는 아이패치맥주소+사람이름 이렇게 해서 key라고 보면 됨. 지금은 적용 안된 상황이라 그냥 맥주소로 할게
     EyePatch eyePatch = EyePatch(
-        ble: '',
-        name: '',
-        time: 0,
-        birth: 0,
-        connected: false,
-        leftRatio: 0,
-        alarm: []); // 초기화
+      ble: '',
+      pid: '',
+      name: '',
+      phone: '',
+      prescribedDuration: 0,
+      leftRatio: 0,
+      alarm: [],
+    ); // 초기화
 
     for (var item in eyePatchList.eyePatches) {
       if (item.ble == pid) {
@@ -84,33 +84,35 @@ class EyePatchController extends GetxController {
     for (var element in eyePatchList.eyePatches) {
       if (element.ble == ble) {
         index = eyePatchList.eyePatches.indexOf(element);
-        if (attribute == "time") {
+        if (attribute == "prescribedDuration") {
           eyePatch = EyePatch(
               ble: element.ble,
+              pid: element.pid,
               name: element.name,
-              time: value,
-              birth: element.birth,
-              connected: element.connected,
+              phone: element.phone,
+              prescribedDuration: value,
               leftRatio: element.leftRatio,
               alarm: element.alarm);
-        } else if (attribute == "connected") {
-          eyePatch = EyePatch(
-              ble: element.ble,
-              name: element.name,
-              time: element.time,
-              birth: element.birth,
-              connected: value,
-              leftRatio: element.leftRatio,
-              alarm: element.alarm);
-        } else if (attribute == "alarm") {
+        }
+        // else if (attribute == "connected") {
+        //   eyePatch = EyePatch(
+        //       ble: element.ble,
+        //       pid: element.pid,
+        //       name: element.name,
+        //       phone: element.phone,
+        //       prescribedDuration: element.prescribedDuration,
+        //       leftRatio: element.leftRatio,
+        //       alarm: element.alarm);
+        // }
+        else if (attribute == "alarm") {
           // int hour = value[0];
           // int minute = value[1];
           eyePatch = EyePatch(
               ble: element.ble,
+              pid: element.pid,
               name: element.name,
-              time: element.time,
-              birth: element.birth,
-              connected: element.connected,
+              phone: element.phone,
+              prescribedDuration: element.prescribedDuration,
               leftRatio: element.leftRatio,
               alarm: value);
         }

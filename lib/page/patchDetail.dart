@@ -2,8 +2,8 @@ import 'dart:collection';
 // import { db } from 'config/firebase';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eyepatch_app/database/dbHelper.dart';
-import 'package:eyepatch_app/model.dart/ble.dart';
-import 'package:eyepatch_app/model.dart/eyePatch.dart';
+import 'package:eyepatch_app/model/ble.dart';
+import 'package:eyepatch_app/model/eyePatch.dart';
 import 'package:eyepatch_app/controller/patchController.dart';
 import 'package:eyepatch_app/style/palette.dart';
 import 'package:flutter/cupertino.dart';
@@ -22,16 +22,16 @@ import 'package:flutter_time_picker_spinner/flutter_time_picker_spinner.dart';
 import 'package:time_chart/time_chart.dart';
 
 class PatchDetail extends StatefulWidget {
-  final BluetoothDevice? connectedDevice;
+  final BluetoothDevice? device;
   // final EyePatch eyePatchInfo;
   final String ble;
-  final bool isConnected;
-  const PatchDetail(
-      {super.key,
-      this.connectedDevice,
-      required this.ble,
-      // required this.eyePatchInfo,
-      required this.isConnected});
+  // final bool isConnected;
+  const PatchDetail({
+    super.key,
+    this.device,
+    required this.ble,
+    // required this.eyePatchInfo,
+  });
 
   @override
   State<PatchDetail> createState() => _PatchDetailState();
@@ -48,8 +48,6 @@ class _PatchDetailState extends State<PatchDetail> {
   final eyePatchController = Get.put(EyePatchController());
   // final alarmController = Get.put(AlarmController());
 
-  // EyePatchList eyePatchList = controller.eyePatchList;
-
   late EyePatch _eyePatch;
   final BluetoothDevice _device = BluetoothDevice.fromId('');
   DBHelper dbHelper = DBHelper();
@@ -63,10 +61,18 @@ class _PatchDetailState extends State<PatchDetail> {
 
   bool openGraph = false;
 
-  int _selectedHour = 0;
-  int _selectedMinute = 0;
-  List<int> minutes = [0, 30];
+  int _selectedAlarmHour = 0;
+  int _selectedAlarmMinute = 0;
+  final List<int> _minutes = [0, 30];
   // List<List<int>> _alarmTime = [];
+
+  int _selectedRecordHour = 0; // 착용을 시작한 시간 (시)
+  int _selectedRecordMinute = 0; // 착용을 시작한 시간 (분)
+
+  int _selectedDurationHour = 0;
+  int _selectedDurationMinute = 0;
+
+  // durationField
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late final ValueNotifier<List<Event>> _selectedEvents;
@@ -97,10 +103,6 @@ class _PatchDetailState extends State<PatchDetail> {
   LinkedHashMap<DateTime?, List<Event>> events =
       LinkedHashMap(equals: isSameDay);
 
-  // var data = events.forEach((key, value) {
-
-  // });
-
   // final data = [
   //   DateTimeRange(
   //     start: DateTime.fromMillisecondsSinceEpoch(1685340407522),
@@ -117,7 +119,7 @@ class _PatchDetailState extends State<PatchDetail> {
     super.initState();
     debugPrint('initstate: ${widget.ble}');
 
-    print(DateTime(2023, 5, 29, 17, 30, 00).millisecondsSinceEpoch);
+    // print(DateTime(2023, 5, 29, 17, 30, 00).millisecondsSinceEpoch);
     // for (var element in eyePatchController.eyePatchList.eyePatches) {
     //   if (element.ble == widget.ble) {
     //     index = eyePatchController.eyePatchList.eyePatches.indexOf(element);
@@ -125,11 +127,8 @@ class _PatchDetailState extends State<PatchDetail> {
     // }
     _eyePatch = eyePatchController.getPatch(widget.ble);
 
-    timeField = TextEditingController(text: _eyePatch.time.toString());
-
-    if (widget.isConnected) {
-      // indicate
-    }
+    timeField =
+        TextEditingController(text: _eyePatch.prescribedDuration.toString());
 
     _selectedDay = _focusedDay;
     _selectedEvents = ValueNotifier(_getEventsForDay(_selectedDay));
@@ -216,18 +215,18 @@ class _PatchDetailState extends State<PatchDetail> {
     super.dispose();
   }
 
-  insertSql() async {
-    // insertSql(ScanResult info, DBHelper dbHelper)
-    print('insert sql');
-    dbHelper.insertBle(Ble(
-      id: await dbHelper.getLastId(_device.name) + 1,
-      ble: _device.id.id, // 기기 맥주소 + 착용자 이름으로 바꾸기
-      patched: 'O', // 모델 적용해서 착용여부 계산해서 넣기.
-      timeStamp: DateTime.now().millisecondsSinceEpoch, // 현재 시간.
-      rawData: 'test', // rawData
-      // dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
-    ));
-  }
+  // insertSql() async {
+  //   // insertSql(ScanResult info, DBHelper dbHelper)
+  //   print('insert sql');
+  //   dbHelper.insertRecord(, Ble(
+  //     // id: await dbHelper.getLastId(_device.name) + 1,
+  //     ble: _device.id.id, // 기기 맥주소 + 착용자 이름으로 바꾸기
+  //     patched: 1, // 모델 적용해서 착용여부 계산해서 넣기.
+  //     timeStamp: DateTime.now().millisecondsSinceEpoch, // 현재 시간.
+  //     rawData: 'test', // rawData
+  //     // dateTime: DateFormat('kk:mm:ss').format(DateTime.now()),
+  //   ));
+  // }
 
   // void _showDialog(Widget child) {
   //   showCupertinoModalPopup<void>(
@@ -274,9 +273,9 @@ class _PatchDetailState extends State<PatchDetail> {
     // Controller controller = Get.put(Controller());
     // controller.eyePatchList.eyePatches[0].bleAddress,
     return GetBuilder<EyePatchController>(builder: (eyePatchController) {
-      // var eyePatch = widget.connectedDevice.id
+      // var eyePatch = widget.device.id
       // EyePatch eyePatch = controller.eyePatchList.eyePatches
-      // .where((element) => element.bleAddress == widget.connectedDevice!.id.toString()) as EyePatch; // 맞나..?
+      // .where((element) => element.bleAddress == widget.device!.id.toString()) as EyePatch; // 맞나..?
       return Scaffold(
           appBar: AppBar(
             title: const Text(
@@ -295,7 +294,6 @@ class _PatchDetailState extends State<PatchDetail> {
                 Row(
                   children: [
                     Expanded(
-                      flex: 1,
                       child: Container(
                         decoration: const BoxDecoration(
                           borderRadius: BorderRadius.all(Radius.circular(8)),
@@ -304,24 +302,22 @@ class _PatchDetailState extends State<PatchDetail> {
                         child: Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: Stack(children: [
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 20,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(50),
-                                  color: widget.isConnected
-                                      // color: widget.connectedDevice.state.
-                                      ? Palette.primary1
-                                      : Palette.red,
-                                ),
-                              ),
-                            ),
+                            // Positioned(
+                            //   right: 0,
+                            //   top: 0,
+                            //   child: Container(
+                            //     width: 20,
+                            //     height: 20,
+                            //     decoration: BoxDecoration(
+                            //       borderRadius: BorderRadius.circular(50),
+                            //       color: widget.isConnected
+                            //           // color: widget.device.state.
+                            //           ? Palette.primary1
+                            //           : Palette.red,
+                            //     ),
+                            //   ),
+                            // ),
                             Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
@@ -336,8 +332,6 @@ class _PatchDetailState extends State<PatchDetail> {
                                     Expanded(
                                       child: Text(
                                         _eyePatch.ble,
-                                        // eyePatch.bleAddress,
-                                        // widget.connectedDevice.id.toString(),
                                         style: const TextStyle(
                                           color: Colors.black,
                                           fontSize: 16,
@@ -346,9 +340,27 @@ class _PatchDetailState extends State<PatchDetail> {
                                     ),
                                   ],
                                 ),
-                                // const SizedBox(height: 8),
-                                //                           GetBuilder<EyePatchController>(
-                                // builder: (controller) {
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '환자번호',
+                                      style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      _eyePatch.pid,
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
                                 GetBuilder<EyePatchController>(
                                     builder: (controller) {
                                   return Row(
@@ -362,10 +374,7 @@ class _PatchDetailState extends State<PatchDetail> {
                                       ),
                                       const SizedBox(width: 10),
                                       Text(
-                                        controller
-                                            .getPatch(widget.ble)
-                                            .time
-                                            .toString(),
+                                        '${controller.getPatch(widget.ble).prescribedDuration.toString()}시간',
                                         style: const TextStyle(
                                           color: Colors.black,
                                           fontSize: 16,
@@ -373,7 +382,12 @@ class _PatchDetailState extends State<PatchDetail> {
                                       ),
                                       const SizedBox(width: 10),
                                       TextButton(
-                                          child: const Text("시간변경"),
+                                          style: TextButton.styleFrom(
+                                              minimumSize: Size.zero,
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                              padding: EdgeInsets.zero),
                                           onPressed: () {
                                             showDialog(
                                                 context: context,
@@ -443,34 +457,33 @@ class _PatchDetailState extends State<PatchDetail> {
                                                             ),
                                                           ),
                                                           Container(
-                                                            width: 24,
-                                                            height: 24,
-                                                            decoration: BoxDecoration(
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            4),
-                                                                color: Palette
-                                                                    .primary1),
-                                                            child: Center(
+                                                              width: 24,
+                                                              height: 24,
+                                                              decoration: BoxDecoration(
+                                                                  borderRadius:
+                                                                      BorderRadius
+                                                                          .circular(
+                                                                              4),
+                                                                  color: Palette
+                                                                      .primary1),
+                                                              child: TextButton(
+                                                                onPressed: () {
+                                                                  timeField
+                                                                          .text =
+                                                                      (int.parse(timeField.text) +
+                                                                              1)
+                                                                          .toString();
+                                                                },
                                                                 child:
-                                                                    TextButton(
-                                                              onPressed: () {
-                                                                timeField.text =
-                                                                    (int.parse(timeField.text) +
-                                                                            1)
-                                                                        .toString();
-                                                              },
-                                                              child: const Text(
-                                                                "+",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .white,
-                                                                    fontSize:
-                                                                        10),
-                                                              ),
-                                                            )),
-                                                          ),
+                                                                    const Text(
+                                                                  "+",
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontSize:
+                                                                          10),
+                                                                ),
+                                                              )),
                                                           const SizedBox(
                                                               width: 10),
                                                           const Text('시간'),
@@ -487,7 +500,7 @@ class _PatchDetailState extends State<PatchDetail> {
                                                                   .updateElement(
                                                                       _eyePatch
                                                                           .ble,
-                                                                      "time",
+                                                                      "prescribedDuration",
                                                                       int.parse(
                                                                           timeField
                                                                               .text));
@@ -502,7 +515,13 @@ class _PatchDetailState extends State<PatchDetail> {
                                                             )
                                                       ]);
                                                 });
-                                          }),
+                                          },
+                                          child: const Icon(
+                                            Icons.edit,
+                                            color: Color.fromARGB(
+                                                255, 155, 155, 155),
+                                            size: 20,
+                                          )),
                                       // const Text(
                                       //   '지금 ~시간 착용중', //시간 단위로?
                                       //   style: TextStyle(
@@ -513,11 +532,11 @@ class _PatchDetailState extends State<PatchDetail> {
                                     ],
                                   );
                                 }),
-                                // const SizedBox(height: 10),
+                                const SizedBox(height: 5),
                                 Row(
                                   children: [
                                     const Text(
-                                      '착용비율 좌:우',
+                                      '착용비율 (좌:우)',
                                       style: TextStyle(
                                           color: Colors.black,
                                           fontSize: 16,
@@ -526,6 +545,26 @@ class _PatchDetailState extends State<PatchDetail> {
                                     const SizedBox(width: 10),
                                     Text(
                                       "${_eyePatch.leftRatio.toInt()}:${(100 - _eyePatch.leftRatio).toInt()}",
+                                      style: const TextStyle(
+                                        color: Colors.black,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    const Text(
+                                      '전화번호',
+                                      style: TextStyle(
+                                          color: Colors.black,
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      _eyePatch.phone,
                                       style: const TextStyle(
                                         color: Colors.black,
                                         fontSize: 16,
@@ -625,8 +664,6 @@ class _PatchDetailState extends State<PatchDetail> {
                       for (var element in data) {
                         selectedDayPatchedTimeDuration += element.duration;
                       }
-
-                      // print()
 
                       // const source = Source.server;
                       // _firestore
@@ -830,42 +867,47 @@ class _PatchDetailState extends State<PatchDetail> {
                               : const SizedBox();
                         })),
 
-                TextButton(
-                    onPressed: () async {
-                      if (widget.connectedDevice != null) {
-                        _device.discoverServices();
-                        List<BluetoothService> services =
-                            await _device.discoverServices();
-                        services.forEach((service) async {
-                          // print(characteristics);
-                          var characteristics = service.characteristics;
+                // TextButton(
+                //     onPressed: () async {
+                //       if (widget.device != null) {
+                //         _device.discoverServices();
+                //         List<BluetoothService> services =
+                //             await _device.discoverServices();
+                //         services.forEach((service) async {
+                //           // print(characteristics);
+                //           var characteristics = service.characteristics;
 
-                          for (BluetoothCharacteristic c in characteristics) {
-                            List<int> value = await c.read();
-                            if (c.properties.indicate) {
-                              await c.setNotifyValue(true);
+                //           for (BluetoothCharacteristic c in characteristics) {
+                //             List<int> value = await c.read();
+                //             if (c.properties.indicate) {
+                //               await c.setNotifyValue(true);
 
-                              c.value.listen((value) async {
-                                print('value: ${value}');
+                //               c.value.listen((value) async {
+                //                 print('value: ${value}');
 
-                                insertSql();
-                              });
-                            }
-                          }
-                        });
+                //                 insertSql();
+                //               });
+                //             }
+                //           }
+                //         });
 
-                        // //read function
-                        // services?.forEach((service) async {
-                        //   // print(service);
+                //         // //read function
+                //         // services?.forEach((service) async {
+                //         //   // print(service);
 
-                        // });
-                      }
-                    },
-                    child: Text('set noti')),
+                //         // });
+                //       }
+                //     },
+                //     child: Text('set noti')),
                 TextButton(
                     onPressed: () {
-                      // dbHelper.getAllBle();
-                      eyePatchController.printPatchList();
+                      // dbHelper.dropTable(
+                      //     widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
+                      // print(widget.ble);
+                      // print(widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
+                      dbHelper.getAllBle(
+                          widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
+                      // eyePatchController.printPatchList();
                     },
                     child: Text('eyepatchlist에 잇는것들 보기')),
                 TextButton(
@@ -873,6 +915,11 @@ class _PatchDetailState extends State<PatchDetail> {
                       showAlarmDialog(context);
                     },
                     child: Text('알림 설정')),
+                TextButton(
+                    onPressed: () {
+                      writeRecord(context);
+                    },
+                    child: Text('수기 작성')),
 
                 // TextButton(
                 //     onPressed: () async {
@@ -953,14 +1000,312 @@ class _PatchDetailState extends State<PatchDetail> {
     );
   }
 
-  Future<dynamic> showAlarmDialog(BuildContext context) {
-    // Duration initialTimer = Duration(hours: 0, minutes: 0);
+  Future<dynamic> writeRecord(BuildContext context) {
+    TextEditingController startTimeField = TextEditingController();
+    TextEditingController durationField = TextEditingController();
 
     return showDialog(
         context: context,
         builder: (BuildContext context) {
           return GetBuilder<EyePatchController>(builder: (controller) {
-            EyePatch _eyePatch = controller.getPatch(widget.ble);
+            EyePatch eyePatch = controller.getPatch(widget.ble);
+            return StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                title: const Text('기록 수기 작성'),
+                content: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text(
+                    '착용을 시작한 시간을 입력해주세요.', // 캘린더도 넣어야할 것 같은 불길한 느낌..  -> 맞아. ^__^
+                    style: TextStyle(
+                        color: Palette.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  TextButton(
+                      onPressed: () {
+                        showCupertinoModalPopup(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Container(
+                                  color: Colors.white,
+                                  height: MediaQuery.of(context)
+                                          .copyWith()
+                                          .size
+                                          .height /
+                                      3,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(0),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Expanded(
+                                                child: CupertinoPicker(
+                                                  squeeze: 1,
+                                                  scrollController:
+                                                      FixedExtentScrollController(
+                                                          initialItem:
+                                                              _selectedRecordHour),
+                                                  itemExtent: 55.0,
+                                                  backgroundColor: Colors.white,
+                                                  onSelectedItemChanged:
+                                                      (value) {
+                                                    setState(() {
+                                                      _selectedRecordHour =
+                                                          value;
+                                                    });
+                                                    print(_selectedRecordHour);
+                                                  },
+                                                  children: List.generate(
+                                                    24,
+                                                    (index) => Center(
+                                                      child: Text(
+                                                        '$index',
+                                                        style: const TextStyle(
+                                                            fontSize: 24),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                child: Text(
+                                                  '시',
+                                                  style: TextStyle(
+                                                      fontSize: 24,
+                                                      color: Palette.black),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                width: 24,
+                                              ),
+                                              Expanded(
+                                                child: CupertinoPicker(
+                                                  looping: true,
+                                                  squeeze: 1,
+                                                  scrollController:
+                                                      FixedExtentScrollController(
+                                                          initialItem:
+                                                              _selectedRecordMinute),
+                                                  itemExtent: 55,
+                                                  backgroundColor: Colors.white,
+                                                  onSelectedItemChanged:
+                                                      (index) {
+                                                    setState(() {
+                                                      _selectedRecordMinute =
+                                                          index;
+                                                    });
+                                                    print(
+                                                        _selectedRecordMinute);
+                                                  },
+                                                  // 텍스트로도 입력할 수 있게하기
+                                                  children: List.generate(
+                                                      60,
+                                                      (index) => Center(
+                                                            child: Text(
+                                                              '${index}',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          24),
+                                                            ),
+                                                          )),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                child: Text(
+                                                  '분',
+                                                  style: TextStyle(
+                                                      fontSize: 24,
+                                                      color: Palette.black),
+                                                ),
+                                              ),
+                                            ]),
+                                      ],
+                                    ),
+                                  ));
+                            });
+                      },
+                      child: Text(
+                        "$_selectedRecordHour시 $_selectedRecordMinute분",
+                        style: const TextStyle(fontSize: 30),
+                      )),
+                  const SizedBox(height: 20),
+
+                  const Text(
+                    '착용한 시간(분단위)을 입력해주세요.',
+                    style: TextStyle(
+                        color: Palette.black,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  // TextFormField(
+                  //   keyboardType: TextInputType.number,
+                  //   controller: durationField,
+                  // ),
+                  TextButton(
+                      onPressed: () {
+                        showCupertinoModalPopup(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return Container(
+                                  color: Colors.white,
+                                  height: MediaQuery.of(context)
+                                          .copyWith()
+                                          .size
+                                          .height /
+                                      3,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(0),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Expanded(
+                                                child: CupertinoPicker(
+                                                  squeeze: 1,
+                                                  scrollController:
+                                                      FixedExtentScrollController(
+                                                          initialItem:
+                                                              _selectedDurationHour),
+                                                  itemExtent: 55.0,
+                                                  backgroundColor: Colors.white,
+                                                  onSelectedItemChanged:
+                                                      (value) {
+                                                    setState(() {
+                                                      _selectedDurationHour =
+                                                          value;
+                                                    });
+                                                    print(
+                                                        _selectedDurationHour);
+                                                  },
+                                                  children: List.generate(
+                                                    24,
+                                                    (index) => Center(
+                                                      child: Text(
+                                                        '$index',
+                                                        style: const TextStyle(
+                                                            fontSize: 24),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                child: Text(
+                                                  '시',
+                                                  style: TextStyle(
+                                                      fontSize: 24,
+                                                      color: Palette.black),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                width: 24,
+                                              ),
+                                              Expanded(
+                                                child: CupertinoPicker(
+                                                  looping: true,
+                                                  squeeze: 1,
+                                                  scrollController:
+                                                      FixedExtentScrollController(
+                                                          initialItem:
+                                                              _selectedDurationMinute),
+                                                  itemExtent: 55,
+                                                  backgroundColor: Colors.white,
+                                                  onSelectedItemChanged:
+                                                      (index) {
+                                                    setState(() {
+                                                      _selectedDurationMinute =
+                                                          index;
+                                                    });
+                                                    print(
+                                                        _selectedDurationMinute);
+                                                  },
+                                                  // 텍스트로도 입력할 수 있게하기
+                                                  children: List.generate(
+                                                      60,
+                                                      (index) => Center(
+                                                            child: Text(
+                                                              '$index',
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          24),
+                                                            ),
+                                                          )),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                child: Text(
+                                                  '분',
+                                                  style: TextStyle(
+                                                      fontSize: 24,
+                                                      color: Palette.black),
+                                                ),
+                                              ),
+                                            ]),
+                                      ],
+                                    ),
+                                  ));
+                            });
+                      },
+                      child: Text(
+                        "$_selectedDurationHour시간 $_selectedDurationMinute분",
+                        style: const TextStyle(fontSize: 30),
+                      )),
+                ]),
+                actions: [
+                  TextButton(
+                      // 근데 그 시간이 중복된 시간이라면 덮어씌우는 것도 생각해야 함.
+                      onPressed: () async {
+                        // 착용을 시작한 시간
+                        // var duration = durationField.text;
+                        int duration = _selectedDurationMinute +
+                            (_selectedDurationHour * 60);
+                        // var duration = 1;
+                        DateTime startTime = DateTime(
+                            DateTime.now().year,
+                            DateTime.now().month,
+                            DateTime.now().day,
+                            _selectedRecordHour,
+                            _selectedRecordMinute);
+
+                        // dbHelper.getPartialRecord(startTime, 1);
+
+                        dbHelper.insertPartialRecord(
+                            widget.ble,
+                            widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''),
+                            startTime,
+                            duration);
+                        // 키가 중복인 경우 이렇게 하면 저장이 안되려나? key를 timestamp값으로 지금 변경 해 놓음.
+
+                        // dbHelper.dropTable();
+                        Navigator.pop(context);
+                      },
+                      child: const Text('확인'))
+                ],
+              );
+            });
+          });
+        });
+  }
+
+  Future<dynamic> showAlarmDialog(BuildContext context) {
+    return showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return GetBuilder<EyePatchController>(builder: (controller) {
+            EyePatch eyePatch = controller.getPatch(widget.ble);
             return StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) {
                 return AlertDialog(
@@ -981,28 +1326,24 @@ class _PatchDetailState extends State<PatchDetail> {
                           const SizedBox(height: 20),
                           Expanded(
                               child: ListView.builder(
-                                  //controller
-                                  // .getPatch(widget.ble)
-                                  // .time
-                                  // .toString()
-                                  itemCount: _eyePatch.alarm == null
+                                  itemCount: eyePatch.alarm == null
                                       ? 0
-                                      : _eyePatch.alarm!.length,
+                                      : eyePatch.alarm!.length,
                                   shrinkWrap: true,
                                   itemBuilder: ((context, index) {
-                                    if (_eyePatch.alarm?[index] != null)
+                                    if (eyePatch.alarm?[index] != null) {
                                       return Text(
-                                          '${(_eyePatch.alarm![index] / 60).floor()}시 ${(_eyePatch.alarm![index] % 60)}분',
-                                          style: TextStyle(
+                                          '${(eyePatch.alarm![index] / 60).floor()}시 ${(eyePatch.alarm![index] % 60)}분',
+                                          style: const TextStyle(
                                               color: Palette.primary1,
                                               fontWeight: FontWeight.bold,
                                               fontSize: 18));
+                                    }
                                   }))),
                           Row(
                             children: [
                               TextButton(
                                   onPressed: () {
-                                    // DatePicker.showDatePick
                                     showCupertinoModalPopup(
                                         context: context,
                                         builder: (BuildContext context) {
@@ -1013,10 +1354,9 @@ class _PatchDetailState extends State<PatchDetail> {
                                                       .size
                                                       .height /
                                                   3,
-                                              // height: 200,
                                               child: Padding(
-                                                padding: const EdgeInsets.only(
-                                                    left: 40.0, right: 40.0),
+                                                padding:
+                                                    const EdgeInsets.all(0),
                                                 child: Column(
                                                   children: [
                                                     Row(
@@ -1031,22 +1371,21 @@ class _PatchDetailState extends State<PatchDetail> {
                                                             child:
                                                                 CupertinoPicker(
                                                               squeeze: 1,
-                                                              // offAxisFraction: 0.5,
                                                               scrollController:
                                                                   FixedExtentScrollController(
                                                                       initialItem:
-                                                                          _selectedHour),
+                                                                          _selectedAlarmHour),
                                                               itemExtent: 55.0,
                                                               backgroundColor:
                                                                   Colors.white,
                                                               onSelectedItemChanged:
                                                                   (value) {
                                                                 setState(() {
-                                                                  _selectedHour =
+                                                                  _selectedAlarmHour =
                                                                       value;
                                                                 });
                                                                 print(
-                                                                    _selectedHour);
+                                                                    _selectedAlarmHour);
                                                               },
                                                               children:
                                                                   List.generate(
@@ -1082,33 +1421,29 @@ class _PatchDetailState extends State<PatchDetail> {
                                                               scrollController:
                                                                   FixedExtentScrollController(
                                                                       initialItem:
-                                                                          _selectedMinute),
+                                                                          _selectedAlarmMinute),
                                                               itemExtent: 55,
                                                               backgroundColor:
                                                                   Colors.white,
                                                               onSelectedItemChanged:
                                                                   (index) {
                                                                 setState(() {
-                                                                  _selectedMinute =
-                                                                      minutes[
+                                                                  _selectedAlarmMinute =
+                                                                      _minutes[
                                                                           index];
                                                                 });
                                                                 print(
-                                                                    _selectedMinute);
+                                                                    _selectedAlarmMinute);
                                                               },
-                                                              // children: List.generate(
-                                                              //   60,
-                                                              //   (index) => Text('$index'),
-                                                              // ),
                                                               children:
                                                                   List.generate(
-                                                                      minutes
+                                                                      _minutes
                                                                           .length,
                                                                       (index) =>
                                                                           Center(
                                                                             child:
                                                                                 Text(
-                                                                              '${minutes[index]}',
+                                                                              '${_minutes[index]}',
                                                                               style: const TextStyle(fontSize: 24),
                                                                             ),
                                                                           )),
@@ -1130,7 +1465,7 @@ class _PatchDetailState extends State<PatchDetail> {
                                         });
                                   },
                                   child: Text(
-                                    "$_selectedHour시 $_selectedMinute분",
+                                    "$_selectedAlarmHour시 $_selectedAlarmMinute분",
                                     style: const TextStyle(fontSize: 30),
                                   )),
                               Container(
@@ -1145,16 +1480,17 @@ class _PatchDetailState extends State<PatchDetail> {
                                       //         now.year,
                                       //         now.month,
                                       //         now.day,
-                                      //         _selectedHour,
-                                      //         _selectedMinute,
+                                      //         _selectedAlarmHour,
+                                      //         _selectedAlarmMinute,
                                       //         0,
                                       //         0,
                                       //         0));
-                                      int alarmTime = (_selectedHour * 60) +
-                                          _selectedMinute;
+                                      int alarmTime =
+                                          (_selectedAlarmHour * 60) +
+                                              _selectedAlarmMinute;
                                       print(alarmTime);
                                       List<dynamic> eyePatchAlarmList =
-                                          _eyePatch.alarm ?? [];
+                                          eyePatch.alarm ?? [];
                                       controller.updateElement(
                                           widget.ble,
                                           "alarm",
@@ -1184,7 +1520,7 @@ class _PatchDetailState extends State<PatchDetail> {
   }
 
   // Future<dynamic> alarmModal(BuildContext context) {
-  //   Duration initialTimer = const Duration(hours: 0, minutes: 0);
+  //   Duration initialTimer = const Duration(hours: 0, _minutes: 0);
   //   return showCupertinoModalPopup(
   //       context: context,
   //       builder: (BuildContext context) {

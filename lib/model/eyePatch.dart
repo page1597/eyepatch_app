@@ -6,20 +6,20 @@ class EyePatch {
   // final int id;
 
   final String ble; // 모듈 주소
+  final String pid;
   final String name; // 패치 착용자 이름
-  final int time; // 착용시간 (추후 단위 변경하기)
-  final int birth; //timestamp
-  final bool connected;
+  final String phone;
+  final int prescribedDuration; // 착용시간 (추후 단위 변경하기)
   final double leftRatio;
   final List<dynamic>? alarm; // 알림
 
   EyePatch({
     // required this.id,
     required this.ble,
+    required this.pid,
+    required this.phone,
     required this.name,
-    required this.time,
-    required this.birth,
-    required this.connected,
+    required this.prescribedDuration,
     required this.leftRatio,
     this.alarm,
   });
@@ -27,14 +27,14 @@ class EyePatch {
   // EyePatch.fromJson(Map<String, dynamic> json)
   //     : bleAddress = json['bleAddress'],
   //       name = json['name'],
-  //       time = json['time'];
+  //       prescribedDuration = json['prescribedDuration'];
   // // alarm = json['alarm'];
 
   // Map<String, dynamic> toMap() {
   //   return {
   //     'bleAddress': bleAddress,
   //     'name': name,
-  //     'time': time,
+  //     'prescribedDuration': prescribedDuration,
   //     // 'alarm': alarm,
   //   };
   // }
@@ -43,10 +43,10 @@ class EyePatch {
     Map<String, dynamic> eyePatch = {};
 
     eyePatch['ble'] = ble;
+    eyePatch['pid'] = pid;
     eyePatch['name'] = name;
-    eyePatch['time'] = time;
-    eyePatch['birth'] = birth;
-    eyePatch['connected'] = connected;
+    eyePatch['phone'] = phone;
+    eyePatch['prescribedDuration'] = prescribedDuration;
     eyePatch['leftRatio'] = leftRatio;
     eyePatch['alarm'] = alarm;
 

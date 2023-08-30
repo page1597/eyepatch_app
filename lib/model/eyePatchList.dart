@@ -1,4 +1,4 @@
-import 'package:eyepatch_app/model.dart/eyePatch.dart';
+import 'package:eyepatch_app/model/eyePatch.dart';
 
 class EyePatchList {
   List<EyePatch> eyePatches = [];
