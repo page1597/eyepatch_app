@@ -270,6 +270,8 @@ class _PatchDetailState extends State<PatchDetail> {
     // advertising mode로 해야되니까 여기서 필터링해서 착용하고 있는지 아닌지 계속 확인해서 저장하기. (insertSql() 통해서)
     // 여기에서 n초 주기로 계속 받아오기
 
+    // 패치가 떼지면 보냄. (패치 착용 -> 미착용으로 바뀔 경우 해당 함수(백엔드로 정보 보내는거) 실행)
+
     // Controller controller = Get.put(Controller());
     // controller.eyePatchList.eyePatches[0].bleAddress,
     return GetBuilder<EyePatchController>(builder: (eyePatchController) {
@@ -901,10 +903,20 @@ class _PatchDetailState extends State<PatchDetail> {
                 //     child: Text('set noti')),
                 TextButton(
                     onPressed: () {
+                      dbHelper.sqlToCsv(
+                          widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''),
+                          widget.ble,
+                          1694703600000);
+                    },
+                    child: const Text('test export to csv ')),
+
+                TextButton(
+                    onPressed: () {
                       // dbHelper.dropTable(
                       //     widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
                       // print(widget.ble);
                       // print(widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
+                      print(widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
                       dbHelper.getAllBle(
                           widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
                       // eyePatchController.printPatchList();
@@ -1281,6 +1293,8 @@ class _PatchDetailState extends State<PatchDetail> {
                             _selectedRecordMinute);
 
                         // dbHelper.getPartialRecord(startTime, 1);
+
+                        print(widget.ble.replaceAll(RegExp("[^a-zA-Z]"), ''));
 
                         dbHelper.insertPartialRecord(
                             widget.ble,

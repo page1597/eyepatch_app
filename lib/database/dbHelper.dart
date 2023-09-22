@@ -8,9 +8,10 @@ import 'externalStorageHelpder.dart';
 
 // 백그라운드로 바꾸기
 class DBHelper {
-  dynamic _db;
+  // dynamic _db;
+  var _db;
 
-  Future<Database> database(String tableName) async {
+  Future<Database> getDatabase(String tableName) async {
     if (_db != null) return _db;
     _db = openDatabase(
       join(await getDatabasesPath(), '$tableName.db'),
@@ -29,7 +30,7 @@ class DBHelper {
   Future<void> insertRecord(String tableName, Ble ble) async {
     print('insert ble');
 
-    final db = await database(tableName);
+    final db = await getDatabase(tableName);
     await db.insert(tableName, ble.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
@@ -62,7 +63,7 @@ class DBHelper {
   }
 
   Future<List<Ble>> getAllBle(String tableName) async {
-    final db = await database(tableName);
+    final db = await getDatabase(tableName);
     print(tableName);
     final List<Map<String, dynamic>> maps = await db.query(tableName);
     String path = await getDatabasesPath();
@@ -92,7 +93,7 @@ class DBHelper {
   Future<List<Ble>> getPartialRecord(
       String tableName, DateTime startTime, int duration) async {
     // getPartBle
-    final db = await database(tableName);
+    final db = await getDatabase(tableName);
     final List<Map<String, dynamic>> maps = await db.query(tableName);
     String path = await getDatabasesPath();
     print('기록 가져오기: $path');
@@ -136,7 +137,7 @@ class DBHelper {
   }
 
   Future getLastTimeStamp(String tableName) async {
-    final db = await database(tableName);
+    final db = await getDatabase(tableName);
     final List<Map<String, dynamic>> maps = await db.query(tableName);
     if (maps.isEmpty) {
       return 0;
@@ -145,7 +146,7 @@ class DBHelper {
   }
 
   Future getLastBle(String tableName) async {
-    final db = await database(tableName);
+    final db = await getDatabase(tableName);
     final List<Map<String, dynamic>> maps = await db.query(tableName);
     if (maps.isEmpty) {
       return 'unknown'; // ble 이름으로 바꿔야됨.
@@ -191,7 +192,7 @@ class DBHelper {
   // }
 
   Future<void> dropTable(String tableName) async {
-    final db = await database(tableName);
+    final db = await getDatabase(tableName);
     db.delete(tableName);
     // db.d
   }
@@ -215,8 +216,9 @@ class DBHelper {
 
   Future<void> sqlToCsv(
       String tableName, String deviceName, int startedTime) async {
-    final db = await database(tableName);
-    var result = await db.query('RECORD');
+    final db = await getDatabase(tableName);
+    // var result = await db.query('RECORD');
+    var result = await db.query(tableName);
     List<List<dynamic>> rows = [];
     List<dynamic> row = [];
     DateTime now = DateTime.now();
@@ -251,7 +253,9 @@ class DBHelper {
         rows.add(row);
       }
     }
+    // print(rows);
     String csv = const ListToCsvConverter().convert(rows);
+    print(csv);
     ExternalStorageHelper.writeToFile(csv, deviceName);
   }
 }

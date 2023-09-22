@@ -18,10 +18,12 @@ import 'package:eyepatch_app/database/devices.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
+import 'package:http/http.dart' as http;
 
 import 'package:intl/intl.dart';
 import 'package:loading_indicator/loading_indicator.dart';
 import 'package:get/get.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:http/http.dart' as http;
@@ -37,7 +39,10 @@ class _PatchListState extends State<PatchList> {
   // EyePatchList _eyePatchList = EyePatchList();
   DBHelper dbHelper = DBHelper();
 
-  final url = Uri.parse('https://');
+  // final uri = Uri.parse('https://');
+  // String uri = 'https://'; // 서버주소
+  // var uri = 'example.org';
+  // var url = Uri.https(uri, '/api/checkpid?pid={pid}&pn={phonenumber}');
 
   var eyePatchCount = 0;
   var showAddDialog = false;
@@ -1007,7 +1012,7 @@ class _PatchListState extends State<PatchList> {
             ),
             actions: [
               TextButton(
-                onPressed: () {
+                onPressed: () async {
                   if (nameField.text.isNotEmpty &&
                       timeField.text.isNotEmpty &&
                       phoneField.text.isNotEmpty) {
@@ -1015,6 +1020,40 @@ class _PatchListState extends State<PatchList> {
                     pid = pidField.text;
                     phone = phoneField.text;
                     prescribedDuration = int.parse(timeField.text);
+
+                    // var respnose = await http.get(url);
+
+                    // var url = Uri.https('example.org', '/api/checkpid',
+                    //     {'pid': pid, 'pn': phone});
+                    // print(url);
+                    // var response = await http.get(url);
+                    // if (response.statusCode == 200) {
+                    //   var result = response.body; // true이면 존재, 아니라면 false
+                    //   if (result == true) {
+                    //     var newEyePatch = EyePatch(
+                    //         name: name,
+                    //         pid: pid,
+                    //         phone: phone,
+                    //         prescribedDuration: prescribedDuration,
+                    //         ble: ble,
+                    //         // connected: false,
+                    //         leftRatio: currentSliderValue);
+
+                    //     // 백엔드에 post 요청하기
+
+                    //     eyePatchList.eyePatches.add(newEyePatch);
+                    //     storage.ready.then((_) {
+                    //       storage.setItem(
+                    //           'eyePatchList', eyePatchList.toJSONEncodable());
+                    //     });
+
+                    //     setState(() {});
+                    //     //  Navigator.pop(context);
+                    //   } else if (result == false) {
+                    //     // alert('환자 번호가 존재하지 않습니다.')
+                    //   }
+                    // }
+
                     var newEyePatch = EyePatch(
                         name: name,
                         pid: pid,
