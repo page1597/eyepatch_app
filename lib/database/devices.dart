@@ -27,4 +27,5 @@ const devicesList = [
   {'id': 23, 'address': 'AC:4D:16:3E:F8:C1'}, // 이상함ㅐ0
   {'id': 24, 'address': 'F0:F8:F2:49:0F:7A'}, //
   {'id': 25, 'address': 'AC:4D:16:3F:1C:A9'}, //
+  {'id': 26, 'address': '4BC3EC4E-FADC-CF20-90CB-73A1C4AA7236'}, //ios
 ];

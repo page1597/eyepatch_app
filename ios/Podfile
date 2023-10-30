@@ -77,7 +77,7 @@ post_install do |installer|
         'PERMISSION_LOCATION=1',
 
         ## dart: PermissionGroup.notification
-        # 'PERMISSION_NOTIFICATIONS=1',
+        'PERMISSION_NOTIFICATIONS=1',
 
         ## dart: PermissionGroup.mediaLibrary
         # 'PERMISSION_MEDIA_LIBRARY=1',
@@ -94,7 +94,7 @@ post_install do |installer|
         ## dart: PermissionGroup.criticalAlerts
         # 'PERMISSION_CRITICAL_ALERTS=1'
       ]
-
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '11.0'
     end 
     # End of the permission_handler configuration
   end
