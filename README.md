@@ -1,6 +1,7 @@
 # eyepatch_app
 
-A new Flutter project.
+안과 환자의 가림 치료를 돕는 앱 서비스
+
 
 ## Getting Started
 
