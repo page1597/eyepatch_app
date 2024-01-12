@@ -1,9 +1,10 @@
-# eyepatch_app
+# 가림 패치 어플
 
 안과 환자의 가림 치료를 돕는 앱 서비스
+산학협력 프로젝트로 진행
 
+## 
 
-## Getting Started
 
 This project is a starting point for a Flutter application.
 
